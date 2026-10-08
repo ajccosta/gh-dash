@@ -1585,34 +1585,28 @@ func (m *Model) updateTabs() {
 func (m *Model) switchSelectedView() tea.Cmd {
 	repoFF := config.IsFeatureEnabled(config.FF_REPO_VIEW)
 
+	// View cycle: Notifications → PRs → Issues (→ Repo if enabled) → Notifications
+	next := config.NotificationsView
+	switch m.ctx.View {
+	case config.NotificationsView:
+		next = config.PRsView
+	case config.PRsView:
+		next = config.IssuesView
+	case config.IssuesView:
+		if repoFF {
+			next = config.RepoView
+		}
+	}
+	return m.switchToView(next)
+}
+
+func (m *Model) switchToView(view config.ViewType) tea.Cmd {
 	// Reset notification subject when leaving notifications view
 	if m.ctx.View == config.NotificationsView {
 		keys.SetNotificationSubject(keys.NotificationSubjectNone)
 		m.notificationView.ClearSubject()
 	}
-
-	// View cycle: Notifications → PRs → Issues (→ Repo if enabled) → Notifications
-	if repoFF {
-		switch m.ctx.View {
-		case config.NotificationsView:
-			m.ctx.View = config.PRsView
-		case config.PRsView:
-			m.ctx.View = config.IssuesView
-		case config.IssuesView:
-			m.ctx.View = config.RepoView
-		case config.RepoView:
-			m.ctx.View = config.NotificationsView
-		}
-	} else {
-		switch m.ctx.View {
-		case config.NotificationsView:
-			m.ctx.View = config.PRsView
-		case config.PRsView:
-			m.ctx.View = config.IssuesView
-		default:
-			m.ctx.View = config.NotificationsView
-		}
-	}
+	m.ctx.View = view
 
 	m.syncMainContentDimensions()
 	m.setCurrSectionId(0)

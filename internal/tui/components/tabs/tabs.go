@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/dlvhdr/gh-dash/v4/internal/config"
 	"github.com/dlvhdr/gh-dash/v4/internal/data"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/common"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/carousel"
@@ -27,6 +28,16 @@ type Model struct {
 	carousel      carousel.Model
 	ctx           *context.ProgramContext
 	latestVersion string
+	viewsFocused  bool
+}
+
+// Views are the views the view switcher offers, in the order the switch key cycles them.
+var Views = []config.ViewType{config.NotificationsView, config.PRsView, config.IssuesView}
+
+var viewTitles = map[config.ViewType]string{
+	config.NotificationsView: "Notifications",
+	config.PRsView:           "PRs",
+	config.IssuesView:        "Issues",
 }
 
 func NewModel(ctx *context.ProgramContext) Model {
@@ -73,7 +84,8 @@ func (m Model) View() string {
 	return m.ctx.Styles.Tabs.TabsRow.
 		Width(m.ctx.ScreenWidth).
 		Height(common.HeaderHeight).
-		Render(lipgloss.JoinHorizontal(lipgloss.Bottom, crsl, m.viewNewSectionButton(), logo))
+		Render(lipgloss.JoinHorizontal(lipgloss.Bottom, m.viewViewSwitcher(), crsl,
+			m.viewNewSectionButton(), logo))
 }
 
 type latestVersionMsg struct {
@@ -95,11 +107,37 @@ func (m Model) viewNewSectionButton() string {
 			))
 }
 
+// viewViewSwitcher renders "Notifications │ PRs │ Issues  s" with the current
+// view highlighted (reverse video while the switcher has focus) and the switch key.
+func (m Model) viewViewSwitcher() string {
+	items := make([]string, 0, 2*len(Views))
+	for i, v := range Views {
+		if i > 0 {
+			items = append(items, m.ctx.Styles.Tabs.TabSeparator.Render("│"))
+		}
+		style := m.ctx.Styles.Tabs.Tab
+		if v == m.ctx.View {
+			style = m.ctx.Styles.Tabs.ActiveTab
+			if m.viewsFocused {
+				style = style.Reverse(true)
+			}
+		}
+		items = append(items, style.Padding(0, 1).Render(viewTitles[v]))
+	}
+	items = append(items, m.ctx.Styles.Common.FaintTextStyle.PaddingLeft(1).
+		Render(keys.SwitchViewKey(m.ctx.View)))
+	return lipgloss.NewStyle().
+		Padding(0, 1, 0, 0).
+		Border(lipgloss.NormalBorder(), false, true, false, false).
+		BorderForeground(m.ctx.Styles.Tabs.TabSeparator.GetForeground()).
+		Render(lipgloss.JoinHorizontal(lipgloss.Top, items...))
+}
+
 func (m Model) carouselWidth() int {
 	logo := m.viewLogo()
 	newSectionButton := m.viewNewSectionButton()
 	return m.ctx.ScreenWidth - lipgloss.Width(logo) -
-		lipgloss.Width(newSectionButton)
+		lipgloss.Width(newSectionButton) - lipgloss.Width(m.viewViewSwitcher())
 }
 
 func (m *Model) fetchHasNewVersion() tea.Cmd {
@@ -119,6 +157,11 @@ func (m *Model) CurrSectionId() int {
 // SetFocused highlights the current section tab while the bar has focus.
 func (m *Model) SetFocused(focused bool) {
 	m.carousel.SetHighlighted(focused)
+}
+
+// SetViewsFocused highlights the current view in the view switcher.
+func (m *Model) SetViewsFocused(focused bool) {
+	m.viewsFocused = focused
 }
 
 func (m *Model) SetCurrSectionId(id int) {
