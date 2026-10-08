@@ -1,7 +1,10 @@
 package tasks
 
 import (
+	"bytes"
 	"fmt"
+	"io"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -47,6 +50,7 @@ type GitHubTask struct {
 	Section      SectionIdentifier
 	StartText    string
 	FinishedText string
+	FailedText   string // prefix of the error shown when gh fails; optional
 	Msg          func(c *exec.Cmd, err error) tea.Msg
 }
 
@@ -63,8 +67,10 @@ func fireTask(ctx *context.ProgramContext, task GitHubTask) tea.Cmd {
 	return tea.Batch(startCmd, func() tea.Msg {
 		log.Info("Running task", "cmd", "gh "+strings.Join(task.Args, " "))
 		c := exec.Command("gh", task.Args...)
+		var stderr bytes.Buffer
+		c.Stderr = &stderr
 
-		err := c.Run()
+		err := ghError(c.Run(), stderr.String(), task.FailedText)
 		return constants.TaskFinishedMsg{
 			TaskId:      task.Id,
 			SectionId:   task.Section.Id,
@@ -174,31 +180,49 @@ func MergePR(ctx *context.ProgramContext, section SectionIdentifier, pr data.Row
 		"-R",
 		pr.GetRepoNameWithOwner(),
 	)
+	// gh runs in the terminal (it asks for the merge method); keep what it
+	// prints on stderr so a failure can be shown once the dashboard is back.
+	var stderr bytes.Buffer
+	c.Stderr = io.MultiWriter(os.Stderr, &stderr)
 
 	taskId := fmt.Sprintf("merge_%d", prNumber)
 	task := context.Task{
 		Id:           taskId,
-		StartText:    fmt.Sprintf("Merging PR #%d", prNumber),
-		FinishedText: fmt.Sprintf("PR #%d has been merged", prNumber),
+		StartText:    fmt.Sprintf("Merging #%d", prNumber),
+		FinishedText: fmt.Sprintf("Merged #%d", prNumber),
 		State:        context.TaskStart,
 		Error:        nil,
 	}
 	startCmd := ctx.StartTask(task)
 
 	return tea.Batch(startCmd, tea.ExecProcess(c, func(err error) tea.Msg {
-		isMerged := err == nil && c.ProcessState.ExitCode() == 0
-
-		return constants.TaskFinishedMsg{
-			SectionId:   section.Id,
-			SectionType: section.Type,
-			TaskId:      taskId,
-			Err:         err,
-			Msg: UpdatePRMsg{
-				PrNumber: prNumber,
-				IsMerged: &isMerged,
-			},
-		}
+		return mergeFinished(section, taskId, prNumber, c, err, stderr.String())
 	}))
+}
+
+// mergeFinished reports the result of `gh pr merge`, with gh's error message.
+func mergeFinished(
+	section SectionIdentifier,
+	taskId string,
+	prNumber int,
+	c *exec.Cmd,
+	err error,
+	stderr string,
+) constants.TaskFinishedMsg {
+	if err == nil && c.ProcessState != nil && c.ProcessState.ExitCode() != 0 {
+		err = fmt.Errorf("exit status %d", c.ProcessState.ExitCode())
+	}
+	isMerged := err == nil
+	return constants.TaskFinishedMsg{
+		SectionId:   section.Id,
+		SectionType: section.Type,
+		TaskId:      taskId,
+		Err:         ghError(err, stderr, fmt.Sprintf("Merge #%d failed", prNumber)),
+		Msg: UpdatePRMsg{
+			PrNumber: prNumber,
+			IsMerged: &isMerged,
+		},
+	}
 }
 
 func CreatePR(
@@ -400,8 +424,9 @@ func ApprovePR(
 		Id:           buildTaskId("pr_approve", prNumber),
 		Args:         args,
 		Section:      section,
-		StartText:    fmt.Sprintf("Approving pr #%d", prNumber),
-		FinishedText: fmt.Sprintf("pr #%d has been approved", prNumber),
+		StartText:    fmt.Sprintf("Approving #%d", prNumber),
+		FinishedText: fmt.Sprintf("Approved #%d", prNumber),
+		FailedText:   fmt.Sprintf("Approve #%d failed", prNumber),
 		Msg: func(c *exec.Cmd, err error) tea.Msg {
 			return UpdatePRMsg{
 				PrNumber: prNumber,

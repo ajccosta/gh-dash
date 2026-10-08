@@ -442,7 +442,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds = append(cmds, m.openBrowser())
 
 			case key.Matches(msg, keys.PRKeys.Approve):
-				return m, m.openSidebarForPRInput(m.prView.SetIsApproving)
+				return m, m.approvePRKey()
 
 			case key.Matches(msg, keys.PRKeys.Assign):
 				return m, m.openSidebarForPRInput(m.prView.SetIsAssigning)
@@ -562,7 +562,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if action != nil {
 						switch action.Type {
 						case prview.PRActionApprove:
-							return m, m.openSidebarForPRInput(m.prView.SetIsApproving)
+							return m, m.approvePRKey()
 
 						case prview.PRActionAssign:
 							return m, m.openSidebarForPRInput(m.prView.SetIsAssigning)
@@ -757,10 +757,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			now := time.Now()
 			task.FinishedTime = &now
 			m.tasks[msg.TaskId] = task
-			clear := tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
-				return constants.ClearTaskMsg{TaskId: msg.TaskId}
-			})
-			cmds = append(cmds, clear)
+			m.refreshTaskStatus()
+			cmds = append(cmds, clearTaskAfter(msg.TaskId, taskShownFor(task)))
 
 			scmd := m.updateSection(msg.SectionId, msg.SectionType, msg.Msg)
 			cmds = append(cmds, scmd)
@@ -847,8 +845,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case constants.ClearTaskMsg:
-		m.footer.SetRightSection("")
-		delete(m.tasks, msg.TaskId)
+		// A task restarted, or finished again, since this clear was scheduled
+		// keeps its status for its own full time.
+		if t, ok := m.tasks[msg.TaskId]; ok && t.State != context.TaskStart &&
+			t.FinishedTime != nil && time.Since(*t.FinishedTime) >= taskShownFor(t)-time.Second/2 {
+			delete(m.tasks, msg.TaskId)
+		}
+		m.refreshTaskStatus()
 
 	case section.SectionMsg:
 		cmd = m.updateRelevantSection(msg)
@@ -1015,7 +1018,8 @@ func (m *Model) View() tea.View {
 				)),
 		)
 	} else {
-		m.footer.SetPRSelected(m.ctx.View == config.PRsView && m.getCurrRowData() != nil)
+		m.footer.SetPRSelected(m.ctx.View == config.PRsView && m.getCurrRowData() != nil &&
+			m.prView.CanApprove())
 		s.WriteString(m.footer.View())
 	}
 
@@ -1695,6 +1699,10 @@ func (m *Model) renderRunningTask() string {
 		tasks = append(tasks, value)
 	}
 	sort.Slice(tasks, func(i, j int) bool {
+		// A failure is shown first, so a background fetch can't hide it.
+		if (tasks[i].State == context.TaskError) != (tasks[j].State == context.TaskError) {
+			return tasks[i].State == context.TaskError
+		}
 		if tasks[i].FinishedTime != nil && tasks[j].FinishedTime == nil {
 			return false
 		}

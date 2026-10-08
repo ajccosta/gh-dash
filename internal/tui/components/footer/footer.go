@@ -7,6 +7,7 @@ import (
 
 	bbHelp "charm.land/bubbles/v2/help"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/dlvhdr/gh-dash/v4/internal/config"
@@ -24,7 +25,7 @@ type Model struct {
 	help            bbHelp.Model
 	ShowAll         bool
 	ShowConfirmQuit bool
-	prSelected      bool // a PR row is selected: hint at the approve key
+	prSelected      bool // a PR the user can approve is selected: hint at the approve key
 }
 
 func NewModel(ctx *context.ProgramContext) Model {
@@ -59,7 +60,7 @@ func (m Model) View() string {
 			Padding(0, 1).
 			Underline(true).
 			Render(fmt.Sprintf("%s donate", constants.DonateIcon)))
-		viewSwitcher := m.renderViewSwitcher(m.ctx)
+		viewSwitcher := m.renderViewSwitcher(m.ctx, true)
 		leftSection := ""
 		if m.leftSection != nil {
 			leftSection = *m.leftSection
@@ -67,6 +68,16 @@ func (m Model) View() string {
 		rightSection := ""
 		if m.rightSection != nil {
 			rightSection = *m.rightSection
+		}
+		// A task status (e.g. gh's error message) must fit on the line: drop
+		// the key hints first, then cut the status.
+		fixed := lipgloss.Width(leftSection) + lipgloss.Width(helpIndicator) +
+			lipgloss.Width(donationIndicator)
+		if fixed+lipgloss.Width(viewSwitcher)+lipgloss.Width(rightSection) > m.ctx.ScreenWidth {
+			viewSwitcher = m.renderViewSwitcher(m.ctx, false)
+		}
+		if room := m.ctx.ScreenWidth - fixed - lipgloss.Width(viewSwitcher); lipgloss.Width(rightSection) > room {
+			rightSection = ansi.Truncate(rightSection, utils.Max(0, room-1), "…") + " "
 		}
 		spacing := lipgloss.NewStyle().
 			Background(m.ctx.Theme.SelectedBackground).
@@ -128,7 +139,7 @@ func (m *Model) SetPRSelected(selected bool) {
 	m.prSelected = selected
 }
 
-func (m *Model) renderViewSwitcher(ctx *context.ProgramContext) string {
+func (m *Model) renderViewSwitcher(ctx *context.ProgramContext, withHint bool) string {
 	var repo string
 	if m.ctx.RepoPath != "" {
 		name := path.Base(m.ctx.RepoPath)
@@ -143,9 +154,13 @@ func (m *Model) renderViewSwitcher(ctx *context.ProgramContext) string {
 		user = ctx.Styles.Common.FooterStyle.Render("@" + ctx.User)
 	}
 
+	hint := ""
+	if withHint {
+		hint = ctx.Styles.ViewSwitcher.InactiveView.Padding(0, 1).Render(m.viewHint())
+	}
 	view := lipgloss.JoinHorizontal(
 		lipgloss.Top,
-		ctx.Styles.ViewSwitcher.InactiveView.Padding(0, 1).Render(m.viewHint()),
+		hint,
 		lipgloss.NewStyle().Background(ctx.Styles.Common.FooterStyle.GetBackground()).Foreground(
 			ctx.Styles.ViewSwitcher.ViewsSeparator.GetBackground()).Render("▌ "),
 		repo,
