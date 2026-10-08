@@ -14,12 +14,22 @@ func (m *Model) IsFocused() bool {
 
 func (m *Model) SetFocused(focused bool) {
 	m.focused = focused
+	m.carousel.SetHighlighted(focused)
 }
 
-// CycleTab moves to the next (delta > 0) or previous tab, wrapping around.
-func (m *Model) CycleTab(delta int) {
-	n := len(tabs)
-	m.carousel.SetCursor(((m.carousel.Cursor()+delta)%n + n) % n)
+// MoveTab moves to the next (delta > 0) or previous tab. It reports false,
+// without moving, when there is no tab on that side.
+func (m *Model) MoveTab(delta int) bool {
+	next := m.carousel.Cursor() + delta
+	if next < 0 || next >= len(tabs) {
+		return false
+	}
+	m.carousel.SetCursor(next)
+	return true
+}
+
+func (m *Model) CommitCursor() int {
+	return m.commitCursor
 }
 
 func (m *Model) IsCommitsTab() bool {

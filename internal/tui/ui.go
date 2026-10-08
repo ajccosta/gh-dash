@@ -51,24 +51,26 @@ import (
 )
 
 type Model struct {
-	keys             *keys.KeyMap
-	sidebar          sidebar.Model
-	prView           prview.Model
-	issueSidebar     issueview.Model
-	branchSidebar    branchsidebar.Model
-	notificationView notificationview.Model
-	currSectionId    int
-	footer           footer.Model
-	repo             section.Section
-	prs              []section.Section
-	issues           []section.Section
-	notifications    []section.Section
-	tabs             tabs.Model
-	ctx              *context.ProgramContext
-	taskSpinner      spinner.Model
-	tasks            map[string]context.Task
-	positionOverride string // "" means no override, "right" or "bottom"
-	mode             Mode
+	keys              *keys.KeyMap
+	sidebar           sidebar.Model
+	prView            prview.Model
+	pane              pane // focused pane, "arrows" preview navigation only
+	paneBelowSections pane // where ↓ from the sections bar goes back to
+	issueSidebar      issueview.Model
+	branchSidebar     branchsidebar.Model
+	notificationView  notificationview.Model
+	currSectionId     int
+	footer            footer.Model
+	repo              section.Section
+	prs               []section.Section
+	issues            []section.Section
+	notifications     []section.Section
+	tabs              tabs.Model
+	ctx               *context.ProgramContext
+	taskSpinner       spinner.Model
+	tasks             map[string]context.Task
+	positionOverride  string // "" means no override, "right" or "bottom"
+	mode              Mode
 }
 
 type Mode int

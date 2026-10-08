@@ -27,9 +27,10 @@ type Model struct {
 	separator              string
 	styles                 Styles
 
-	content string
-	start   int
-	end     int
+	content   string
+	start     int
+	end       int
+	highlight bool // reverse the selected item, to show this bar has focus
 }
 
 // KeyMap defines keybindings. It satisfies to the help.KeyMap interface, which
@@ -349,6 +350,13 @@ func (m *Model) SetCursor(n int) {
 	m.UpdateContent()
 }
 
+// SetHighlighted shows the selected item in reverse video, to mark the bar
+// that has keyboard focus.
+func (m *Model) SetHighlighted(h bool) {
+	m.highlight = h
+	m.UpdateContent()
+}
+
 // MoveLeft moves the selection left by one item..
 // It can not go before the first item.
 func (m *Model) MoveLeft() {
@@ -372,9 +380,13 @@ func (m *Model) renderItem(itemID int, maxWidth int) string {
 	}
 
 	if itemID == m.cursor {
+		selected := m.styles.Selected
+		if m.highlight {
+			selected = selected.Reverse(true)
+		}
 		return lipgloss.JoinHorizontal(
 			lipgloss.Center,
-			m.styles.Selected.Render(item),
+			selected.Render(item),
 			sep,
 		)
 	}

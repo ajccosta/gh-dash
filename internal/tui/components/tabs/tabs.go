@@ -116,6 +116,11 @@ func (m *Model) CurrSectionId() int {
 	return m.carousel.Cursor()
 }
 
+// SetFocused highlights the current section tab while the bar has focus.
+func (m *Model) SetFocused(focused bool) {
+	m.carousel.SetHighlighted(focused)
+}
+
 func (m *Model) SetCurrSectionId(id int) {
 	m.carousel.SetCursor(id)
 }

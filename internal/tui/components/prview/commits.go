@@ -84,7 +84,7 @@ func (m *Model) renderCommits() string {
 	res := heading
 	if m.focused {
 		res = lipgloss.JoinVertical(lipgloss.Left, res,
-			faint.MarginBottom(1).Render("↑/↓ select · enter/d diff · tab/esc back to list"))
+			faint.MarginBottom(1).Render("↑/↓ select · enter/d diff · ← tabs, list · esc list"))
 	}
 	for i, r := range rendered {
 		res = lipgloss.JoinVertical(lipgloss.Left, res, r)
