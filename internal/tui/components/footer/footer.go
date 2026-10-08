@@ -24,6 +24,7 @@ type Model struct {
 	help            bbHelp.Model
 	ShowAll         bool
 	ShowConfirmQuit bool
+	prSelected      bool // a PR row is selected: hint at the approve key
 }
 
 func NewModel(ctx *context.ProgramContext) Model {
@@ -116,7 +117,15 @@ func (m *Model) viewHint() string {
 		m.ctx.View != config.RepoView {
 		hint += " · ↑ to top bar, ←/→ pick view"
 	}
+	if m.prSelected && m.ctx.View == config.PRsView {
+		hint += " · " + keys.PRKeys.Approve.Help().Key + " approve"
+	}
 	return hint
+}
+
+// SetPRSelected tells the footer whether a PR row is selected.
+func (m *Model) SetPRSelected(selected bool) {
+	m.prSelected = selected
 }
 
 func (m *Model) renderViewSwitcher(ctx *context.ProgramContext) string {

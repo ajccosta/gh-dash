@@ -22,7 +22,9 @@ import (
 //	│ ↑/↓ move         │ ←/→ tabs          │   list: ↑ on the first PR → sections,
 //	│ → preview        │ ↑/↓ commit/scroll │         → → preview
 //	│                  │ enter/d diff      │   preview: ← on the first tab → list,
-//	└──────────────────┴───────────────────┘            ↑ at the top → sections
+//	└──────────────────┴───────────────────┘            ↑ at the top → approve button
+//	                                                    (or sections if it is hidden)
+//	approve button: enter approves (as v does), ↑ → sections, ↓ → tabs, ← → list
 //
 // Tab toggles between the list and the preview, Esc returns to the list. The
 // focused bar shows its selected tab in reverse video. Every other key, and
@@ -35,7 +37,8 @@ const (
 	paneList pane = iota
 	paneSections
 	panePreview
-	paneViews // the view switcher left of the sections bar
+	paneViews   // the view switcher left of the sections bar
+	paneApprove // the approve button at the top of the preview
 )
 
 func (m *Model) arrowNavEnabled() bool {
@@ -44,16 +47,24 @@ func (m *Model) arrowNavEnabled() bool {
 }
 
 func (m *Model) setPane(p pane) {
-	if p == panePreview && (!m.sidebar.IsOpen || m.ctx.View != config.PRsView) {
+	if p == paneApprove && !m.prView.CanApprove() {
+		p = panePreview
+	}
+	if (p == panePreview || p == paneApprove) &&
+		(!m.sidebar.IsOpen || m.ctx.View != config.PRsView) {
 		p = paneList
 	}
-	if p == paneList || p == panePreview {
+	if p == paneList || p == panePreview || p == paneApprove {
 		m.paneBelowSections = p
 	}
 	m.pane = p
 	m.tabs.SetFocused(p == paneSections)
 	m.tabs.SetViewsFocused(p == paneViews)
-	m.prView.SetFocused(p == panePreview)
+	m.prView.SetFocused(p == panePreview || p == paneApprove)
+	m.prView.SetApproveFocused(p == paneApprove)
+	if p == paneApprove {
+		m.sidebar.ScrollToTop()
+	}
 	m.syncSidebar()
 	m.ensureCommitCursorVisible()
 }
@@ -66,8 +77,12 @@ func (m *Model) handleArrowNav(msg tea.KeyMsg) (tea.Cmd, bool) {
 		}
 		return nil, false
 	}
-	if m.pane == panePreview && (!m.sidebar.IsOpen || m.ctx.View != config.PRsView) {
+	if (m.pane == panePreview || m.pane == paneApprove) &&
+		(!m.sidebar.IsOpen || m.ctx.View != config.PRsView) {
 		m.setPane(paneList)
+	}
+	if m.pane == paneApprove && !m.prView.CanApprove() {
+		m.setPane(panePreview)
 	}
 	prs := m.ctx.View == config.PRsView
 
@@ -77,7 +92,7 @@ func (m *Model) handleArrowNav(msg tea.KeyMsg) (tea.Cmd, bool) {
 		if !prs {
 			return nil, false
 		}
-		if m.pane == panePreview {
+		if m.pane == panePreview || m.pane == paneApprove {
 			m.setPane(paneList)
 		} else if m.getCurrRowData() != nil {
 			m.setPane(panePreview)
@@ -145,6 +160,24 @@ func (m *Model) handleArrowNav(msg tea.KeyMsg) (tea.Cmd, bool) {
 			return nil, true
 		}
 
+	case paneApprove:
+		switch k {
+		case "enter":
+			m.setPane(panePreview)
+			return m.approveCurrentPR(), true
+		case "up":
+			m.setPane(paneSections)
+			return nil, true
+		case "down":
+			m.setPane(panePreview)
+			return nil, true
+		case "left":
+			m.setPane(paneList)
+			return nil, true
+		case "right":
+			return nil, true
+		}
+
 	case panePreview:
 		switch k {
 		case "left", "right":
@@ -169,7 +202,7 @@ func (m *Model) handleArrowNav(msg tea.KeyMsg) (tea.Cmd, bool) {
 			}
 			if m.prView.IsCommitsTab() {
 				if k == "up" && m.prView.CommitCursor() == 0 {
-					m.setPane(paneSections)
+					m.setPane(m.paneAbovePreview())
 					return nil, true
 				}
 				m.prView.MoveCommitCursor(delta)
@@ -177,7 +210,7 @@ func (m *Model) handleArrowNav(msg tea.KeyMsg) (tea.Cmd, bool) {
 				m.ensureCommitCursorVisible()
 			} else {
 				if k == "up" && m.sidebar.YOffset() == 0 {
-					m.setPane(paneSections)
+					m.setPane(m.paneAbovePreview())
 					return nil, true
 				}
 				m.sidebar.ScrollLines(delta)
@@ -198,6 +231,24 @@ func (m *Model) handleArrowNav(msg tea.KeyMsg) (tea.Cmd, bool) {
 	}
 
 	return nil, false
+}
+
+// paneAbovePreview is where ↑ at the top of the preview goes: the approve
+// button if it is shown, else the sections bar.
+func (m *Model) paneAbovePreview() pane {
+	if m.prView.CanApprove() {
+		return paneApprove
+	}
+	return paneSections
+}
+
+// approveCurrentPR opens the approval prompt for the previewed PR, exactly as
+// the Approve key (v) does. The approve button calls it on click and enter.
+func (m *Model) approveCurrentPR() tea.Cmd {
+	if !m.prView.CanApprove() || m.prView.IsTextInputBoxFocused() {
+		return nil
+	}
+	return m.openSidebarForPRInput(m.prView.SetIsApproving)
 }
 
 // ensureCommitCursorVisible scrolls the preview to the selected commit.

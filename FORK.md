@@ -36,8 +36,10 @@ With `navigation: arrows`, the PRs view is four panes and the arrow keys move be
 | view switcher | `↓` / `Enter` | back to the sections bar |
 | sections bar | `↓` / `Enter` | back to the pane you came from |
 | preview | `←` / `→` | previous / next tab; `←` on Overview focuses the PR list |
-| preview | `↑` / `↓` | Commits tab: select a commit; other tabs: scroll one line. `↑` at the top focuses the sections bar |
+| preview | `↑` / `↓` | Commits tab: select a commit; other tabs: scroll one line. `↑` at the top focuses the approve button (the sections bar if there is none) |
 | preview | `Enter` or `d` | on the Commits tab: show the selected commit's diff |
+| approve button | `Enter` | approve, as `v` does (prompt for an optional comment, `Ctrl+d` submits) |
+| approve button | `↑` / `↓` / `←` | sections bar / back to the tabs / PR list |
 | any | `Tab` | toggle between the PR list and the preview |
 | any | `Esc` | back to the PR list |
 
@@ -47,6 +49,14 @@ The Issues and Notifications views get the view switcher, the sections bar and t
 
 The commit diff comes from `gh api` (no local clone needed) and is shown with `pager.diff`
 (`less` by default, coloured here; `delta` and similar get the raw diff). Every other key keeps its usual meaning.
+
+## Approve button
+
+The PR preview shows `[ ✓ Approve ]` (green) at the right of the status line, above the tabs, on
+every tab. Clicking it, or `Enter` on it in arrows navigation, does exactly what `v` does: it opens
+the "Approve with comment…" box (`Ctrl+d` submits, `Esc` cancels). It shows `✓ Approved`, dimmed,
+when your latest review of the PR approves it, and is hidden on your own PRs and on merged or
+closed ones. The footer hint mentions `v approve` while a PR is selected.
 
 ## Plain glyphs
 
