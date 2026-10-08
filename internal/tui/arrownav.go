@@ -22,9 +22,10 @@ import (
 //	│ ↑/↓ move         │ ←/→ tabs          │   list: ↑ on the first PR → sections,
 //	│ → preview        │ ↑/↓ commit/scroll │         → → preview
 //	│                  │ enter/d diff      │   preview: ← on the first tab → list,
-//	└──────────────────┴───────────────────┘            ↑ at the top → approve button
-//	                                                    (or sections if it is hidden)
-//	approve button: enter approves (as v does), ↑ → sections, ↓ → tabs, ← → list
+//	└──────────────────┴───────────────────┘            ↑ at the top → button row
+//	                                                    (or sections if it is empty)
+//	button row (Approve, Merge): enter presses (as v / m do), ←/→ between them,
+//	← on the first → list, ↑ → sections, ↓ → tabs
 //
 // Tab toggles between the list and the preview, Esc returns to the list. The
 // focused bar shows its selected tab in reverse video. Every other key, and
@@ -39,7 +40,10 @@ const (
 	panePreview
 	paneViews   // the view switcher left of the sections bar
 	paneApprove // the approve button at the top of the preview
+	paneMerge   // the merge button, right of the approve button
 )
+
+func isButtonPane(p pane) bool { return p == paneApprove || p == paneMerge }
 
 func (m *Model) arrowNavEnabled() bool {
 	return m.ctx.Config.Defaults.Preview.Navigation == "arrows" &&
@@ -50,19 +54,23 @@ func (m *Model) setPane(p pane) {
 	if p == paneApprove && !m.prView.CanApprove() {
 		p = panePreview
 	}
-	if (p == panePreview || p == paneApprove) &&
+	if p == paneMerge && !m.prView.CanMerge() {
+		p = panePreview
+	}
+	if (p == panePreview || isButtonPane(p)) &&
 		(!m.sidebar.IsOpen || m.ctx.View != config.PRsView) {
 		p = paneList
 	}
-	if p == paneList || p == panePreview || p == paneApprove {
+	if p == paneList || p == panePreview || isButtonPane(p) {
 		m.paneBelowSections = p
 	}
 	m.pane = p
 	m.tabs.SetFocused(p == paneSections)
 	m.tabs.SetViewsFocused(p == paneViews)
-	m.prView.SetFocused(p == panePreview || p == paneApprove)
+	m.prView.SetFocused(p == panePreview || isButtonPane(p))
 	m.prView.SetApproveFocused(p == paneApprove)
-	if p == paneApprove {
+	m.prView.SetMergeFocused(p == paneMerge)
+	if isButtonPane(p) {
 		m.sidebar.ScrollToTop()
 	}
 	m.syncSidebar()
@@ -77,11 +85,12 @@ func (m *Model) handleArrowNav(msg tea.KeyMsg) (tea.Cmd, bool) {
 		}
 		return nil, false
 	}
-	if (m.pane == panePreview || m.pane == paneApprove) &&
+	if (m.pane == panePreview || isButtonPane(m.pane)) &&
 		(!m.sidebar.IsOpen || m.ctx.View != config.PRsView) {
 		m.setPane(paneList)
 	}
-	if m.pane == paneApprove && !m.prView.CanApprove() {
+	if (m.pane == paneApprove && !m.prView.CanApprove()) ||
+		(m.pane == paneMerge && !m.prView.CanMerge()) {
 		m.setPane(panePreview)
 	}
 	prs := m.ctx.View == config.PRsView
@@ -92,7 +101,7 @@ func (m *Model) handleArrowNav(msg tea.KeyMsg) (tea.Cmd, bool) {
 		if !prs {
 			return nil, false
 		}
-		if m.pane == panePreview || m.pane == paneApprove {
+		if m.pane == panePreview || isButtonPane(m.pane) {
 			m.setPane(paneList)
 		} else if m.getCurrRowData() != nil {
 			m.setPane(panePreview)
@@ -175,6 +184,30 @@ func (m *Model) handleArrowNav(msg tea.KeyMsg) (tea.Cmd, bool) {
 			m.setPane(paneList)
 			return nil, true
 		case "right":
+			if m.prView.CanMerge() {
+				m.setPane(paneMerge)
+			}
+			return nil, true
+		}
+
+	case paneMerge:
+		switch k {
+		case "enter":
+			return m.mergeCurrentPR(), true
+		case "up":
+			m.setPane(paneSections)
+			return nil, true
+		case "down":
+			m.setPane(panePreview)
+			return nil, true
+		case "left":
+			if m.prView.CanApprove() {
+				m.setPane(paneApprove)
+			} else {
+				m.setPane(paneList)
+			}
+			return nil, true
+		case "right":
 			return nil, true
 		}
 
@@ -233,13 +266,35 @@ func (m *Model) handleArrowNav(msg tea.KeyMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
-// paneAbovePreview is where ↑ at the top of the preview goes: the approve
-// button if it is shown, else the sections bar.
+// paneAbovePreview is where ↑ at the top of the preview goes: the first
+// button of the button row (Approve, then Merge), else the sections bar.
 func (m *Model) paneAbovePreview() pane {
 	if m.prView.CanApprove() {
 		return paneApprove
 	}
+	if m.prView.CanMerge() {
+		return paneMerge
+	}
 	return paneSections
+}
+
+// mergeCurrentPR asks to merge the previewed PR, exactly as the Merge key (m)
+// does: the "Are you sure you want to merge this PR? (y/N)" prompt, then
+// `gh pr merge`. The merge button calls it on click and enter.
+func (m *Model) mergeCurrentPR() tea.Cmd {
+	if !m.prView.CanMerge() || m.prView.IsTextInputBoxFocused() {
+		return nil
+	}
+	if m.ctx.View == config.PRsView {
+		if m.getCurrRowData() == nil {
+			return nil
+		}
+		return m.promptConfirmation(m.getCurrSection(), "merge")
+	}
+	if m.notificationView.GetSubjectPR() != nil {
+		return m.promptConfirmationForNotificationPR("merge")
+	}
+	return nil
 }
 
 // approveCurrentPR opens the approval prompt for the previewed PR, exactly as

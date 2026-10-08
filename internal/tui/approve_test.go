@@ -128,3 +128,56 @@ func TestApproveButton_ArrowNavigation(t *testing.T) {
 	require.True(t, handled)
 	require.True(t, m.prView.GetIsApproving(), "enter opens the approval prompt")
 }
+
+func TestMergeButton_ClickAsksForConfirmation(t *testing.T) {
+	m := newApproveTestModel(t, "me") // own PR: Merge is shown, Approve is not
+	require.True(t, m.prView.CanMerge())
+	require.False(t, m.prView.CanApprove())
+	zone.NewGlobal()
+	zone.SetEnabled(true)
+	zone.Scan(m.prView.View())
+	var z *zone.ZoneInfo
+	require.Eventually(t, func() bool {
+		z = zone.Get(prview.MergeZoneId)
+		return !z.IsZero()
+	}, time.Second, 5*time.Millisecond)
+
+	m.Update(tea.MouseClickMsg{X: z.StartX + 1, Y: z.StartY, Button: tea.MouseLeft})
+	require.True(t, m.notificationView.HasPendingAction(), "the click asks before merging")
+	require.Equal(t, "pr_merge", m.notificationView.GetPendingAction())
+
+	// Anything but y cancels; nothing runs.
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'n', Text: "n"})
+	require.Nil(t, cmd)
+	require.False(t, m.notificationView.HasPendingAction())
+}
+
+func TestMergeButton_ArrowNavigation(t *testing.T) {
+	m := newApproveTestModel(t, "other")
+	m.ctx.View = config.PRsView
+	m.ctx.Config.Defaults.Preview.Navigation = "arrows"
+
+	m.setPane(paneApprove)
+	_, handled := m.handleArrowNav(tea.KeyPressMsg{Code: tea.KeyRight})
+	require.True(t, handled)
+	require.Equal(t, paneMerge, m.pane, "→ from Approve focuses Merge")
+	require.True(t, m.prView.IsMergeFocused())
+	require.False(t, m.prView.IsApproveFocused())
+
+	_, handled = m.handleArrowNav(tea.KeyPressMsg{Code: tea.KeyLeft})
+	require.True(t, handled)
+	require.Equal(t, paneApprove, m.pane, "← from Merge goes back to Approve")
+
+	m.setPane(paneMerge)
+	_, _ = m.handleArrowNav(tea.KeyPressMsg{Code: tea.KeyDown})
+	require.Equal(t, panePreview, m.pane)
+
+	// Own PR: no Approve, ↑ from the tabs lands on Merge, ← goes to the list.
+	own := newApproveTestModel(t, "me")
+	own.ctx.View = config.PRsView
+	own.ctx.Config.Defaults.Preview.Navigation = "arrows"
+	require.Equal(t, paneMerge, own.paneAbovePreview())
+	own.setPane(paneMerge)
+	_, _ = own.handleArrowNav(tea.KeyPressMsg{Code: tea.KeyLeft})
+	require.Equal(t, paneList, own.pane)
+}
