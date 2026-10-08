@@ -42,6 +42,7 @@ type Model struct {
 	summaryViewMore bool
 	focused         bool // preview has focus ("arrows" navigation)
 	commitCursor    int  // selected commit on the Commits tab
+	approveFocused  bool // the approve button has focus ("arrows" navigation)
 }
 
 var tabs = []string{"Overview", "Activity", "Commits", "Checks", "Files Changed"}
@@ -254,13 +255,23 @@ func (m *Model) renderTitle() string {
 }
 
 func (m *Model) renderBranches() string {
-	return lipgloss.JoinHorizontal(lipgloss.Left,
+	left := lipgloss.JoinHorizontal(lipgloss.Left,
 		" ",
 		m.renderStatusPill(),
 		" ",
 		lipgloss.NewStyle().
 			Foreground(m.ctx.Theme.SecondaryText).
 			Render(m.pr.Data.Primary.BaseRefName+" ← "+m.pr.Data.Primary.HeadRefName))
+	button := m.renderApproveButton()
+	if button == "" {
+		return left
+	}
+	gap := m.width - lipgloss.Width(left) - lipgloss.Width(button) - 1
+	if gap < 1 {
+		// Not enough room: the button goes on its own line.
+		return lipgloss.JoinVertical(lipgloss.Left, left, "", " "+button)
+	}
+	return left + strings.Repeat(" ", gap) + button
 }
 
 func (m *Model) renderStatusPill() string {

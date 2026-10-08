@@ -866,6 +866,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Button != tea.MouseLeft {
 			return m, nil
 		}
+		if zone.Get(prview.ApproveZoneId).InBounds(msg) && m.sidebar.IsOpen &&
+			(m.ctx.View == config.PRsView || m.notificationView.GetSubjectPR() != nil) {
+			return m, m.approveCurrentPR()
+		}
 		if zone.Get("donate").InBounds(msg) {
 			log.Info("Donate clicked", "msg", msg)
 			openCmd := func() tea.Msg {
@@ -1011,6 +1015,7 @@ func (m *Model) View() tea.View {
 				)),
 		)
 	} else {
+		m.footer.SetPRSelected(m.ctx.View == config.PRsView && m.getCurrRowData() != nil)
 		s.WriteString(m.footer.View())
 	}
 
