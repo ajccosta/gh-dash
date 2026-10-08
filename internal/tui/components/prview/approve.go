@@ -1,6 +1,8 @@
 package prview
 
 import (
+	"strings"
+
 	"charm.land/lipgloss/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
 )
@@ -27,13 +29,13 @@ func (m *Model) approveState() approveState {
 	if pr.State != "OPEN" {
 		return approveHidden
 	}
-	if m.ctx.User != "" && pr.Author.Login == m.ctx.User {
+	if m.IsOwnPR() {
 		return approveHidden
 	}
 	if m.ctx.User != "" && m.pr.Data.IsEnriched {
 		latest := ""
 		for _, r := range m.pr.Data.Enriched.Reviews.Nodes {
-			if r.Author.Login != m.ctx.User || r.State == "COMMENTED" || r.State == "PENDING" {
+			if !strings.EqualFold(r.Author.Login, m.ctx.User) || r.State == "COMMENTED" || r.State == "PENDING" {
 				continue
 			}
 			latest = r.State // reviews are in chronological order
@@ -43,6 +45,21 @@ func (m *Model) approveState() approveState {
 		}
 	}
 	return approveEnabled
+}
+
+// IsOwnPR reports whether the current gh user opened the previewed PR (GitHub
+// rejects approving your own PR). GitHub's viewerDidAuthor, fetched with the
+// PR, decides it; the login comparison (logins are case-insensitive) covers
+// data without that field.
+func (m *Model) IsOwnPR() bool {
+	if !m.hasData() || m.pr.Data.Primary == nil {
+		return false
+	}
+	pr := m.pr.Data.Primary
+	if pr.ViewerDidAuthor || (m.pr.Data.IsEnriched && m.pr.Data.Enriched.ViewerDidAuthor) {
+		return true
+	}
+	return m.ctx.User != "" && strings.EqualFold(pr.Author.Login, m.ctx.User)
 }
 
 // CanApprove reports whether the approve button is shown and enabled.
@@ -80,4 +97,12 @@ func (m *Model) renderApproveButton() string {
 			Render(" ✓ Approved ")
 	}
 	return ""
+}
+
+// PRNumber is the number of the previewed PR, or 0.
+func (m *Model) PRNumber() int {
+	if !m.hasData() || m.pr.Data.Primary == nil {
+		return 0
+	}
+	return m.pr.Data.Primary.Number
 }

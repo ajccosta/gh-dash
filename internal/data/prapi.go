@@ -37,6 +37,7 @@ type EnrichedPullRequestData struct {
 		Login string
 	}
 	AuthorAssociation string
+	ViewerDidAuthor   bool // the viewer (current gh user) opened the PR
 	UpdatedAt         time.Time
 	CreatedAt         time.Time
 	Mergeable         string
@@ -71,6 +72,7 @@ type PullRequestData struct {
 		Login string
 	}
 	AuthorAssociation string
+	ViewerDidAuthor   bool // the viewer (current gh user) opened the PR
 	UpdatedAt         time.Time
 	CreatedAt         time.Time
 	Url               string
@@ -452,6 +454,7 @@ func (e EnrichedPullRequestData) ToPullRequestData() PullRequestData {
 		Title:             e.Title,
 		Author:            e.Author,
 		AuthorAssociation: e.AuthorAssociation,
+		ViewerDidAuthor:   e.ViewerDidAuthor,
 		UpdatedAt:         e.UpdatedAt,
 		CreatedAt:         e.CreatedAt,
 		Url:               e.Url,

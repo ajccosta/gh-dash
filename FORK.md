@@ -55,8 +55,13 @@ The commit diff comes from `gh api` (no local clone needed) and is shown with `p
 The PR preview shows `[ ✓ Approve ]` (green) at the right of the status line, above the tabs, on
 every tab. Clicking it, or `Enter` on it in arrows navigation, does exactly what `v` does: it opens
 the "Approve with comment…" box (`Ctrl+d` submits, `Esc` cancels). It shows `✓ Approved`, dimmed,
-when your latest review of the PR approves it, and is hidden on your own PRs and on merged or
-closed ones. The footer hint mentions `v approve` while a PR is selected.
+when your latest review of the PR approves it, and is hidden on your own PRs (GitHub's
+`viewerDidAuthor`, fetched with the PR) and on merged or closed ones. On your own PR `v` shows
+`✗ Can't approve your own PR #N` instead of opening the box. The footer hint mentions `v approve`
+while a PR you can approve is selected.
+
+The result shows in the footer: `✓ Approved #4`, or `✗ Approve #4 failed: <gh's error message>`.
+Errors stay for 12 s, take priority over background fetches, and are cut to fit the footer line.
 
 ## Plain glyphs
 
