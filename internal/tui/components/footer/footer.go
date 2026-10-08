@@ -25,7 +25,8 @@ type Model struct {
 	help            bbHelp.Model
 	ShowAll         bool
 	ShowConfirmQuit bool
-	prSelected      bool // a PR the user can approve is selected: hint at the approve key
+	canApprove      bool // the selected PR can be approved: hint at the approve key
+	canMerge        bool // the selected PR can be merged: hint at the merge key
 }
 
 func NewModel(ctx *context.ProgramContext) Model {
@@ -128,15 +129,22 @@ func (m *Model) viewHint() string {
 		m.ctx.View != config.RepoView {
 		hint += " · ↑ to top bar, ←/→ pick view"
 	}
-	if m.prSelected && m.ctx.View == config.PRsView {
-		hint += " · " + keys.PRKeys.Approve.Help().Key + " approve"
+	if m.ctx.View == config.PRsView {
+		if m.canApprove {
+			hint += " · " + keys.PRKeys.Approve.Help().Key + " approve"
+		}
+		if m.canMerge {
+			hint += " · " + keys.PRKeys.Merge.Help().Key + " merge"
+		}
 	}
 	return hint
 }
 
-// SetPRSelected tells the footer whether a PR row is selected.
-func (m *Model) SetPRSelected(selected bool) {
-	m.prSelected = selected
+// SetPRActions tells the footer which of approve and merge the selected PR
+// allows, for the key hints.
+func (m *Model) SetPRActions(canApprove, canMerge bool) {
+	m.canApprove = canApprove
+	m.canMerge = canMerge
 }
 
 func (m *Model) renderViewSwitcher(ctx *context.ProgramContext, withHint bool) string {

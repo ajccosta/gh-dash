@@ -36,10 +36,12 @@ With `navigation: arrows`, the PRs view is four panes and the arrow keys move be
 | view switcher | `↓` / `Enter` | back to the sections bar |
 | sections bar | `↓` / `Enter` | back to the pane you came from |
 | preview | `←` / `→` | previous / next tab; `←` on Overview focuses the PR list |
-| preview | `↑` / `↓` | Commits tab: select a commit; other tabs: scroll one line. `↑` at the top focuses the approve button (the sections bar if there is none) |
+| preview | `↑` / `↓` | Commits tab: select a commit; other tabs: scroll one line. `↑` at the top focuses the first button of the button row (the sections bar if there is none) |
 | preview | `Enter` or `d` | on the Commits tab: show the selected commit's diff |
 | approve button | `Enter` | approve, as `v` does (prompt for an optional comment, `Ctrl+d` submits) |
-| approve button | `↑` / `↓` / `←` | sections bar / back to the tabs / PR list |
+| merge button | `Enter` | merge, as `m` does (asks `(y/N)` first, then runs `gh pr merge`) |
+| button row | `←` / `→` | between Approve and Merge; `←` on the first button focuses the PR list |
+| button row | `↑` / `↓` | sections bar / back to the tabs |
 | any | `Tab` | toggle between the PR list and the preview |
 | any | `Esc` | back to the PR list |
 
@@ -50,7 +52,7 @@ The Issues and Notifications views get the view switcher, the sections bar and t
 The commit diff comes from `gh api` (no local clone needed) and is shown with `pager.diff`
 (`less` by default, coloured here; `delta` and similar get the raw diff). Every other key keeps its usual meaning.
 
-## Approve button
+## Approve and Merge buttons
 
 The PR preview shows `[ ✓ Approve ]` (green) at the right of the status line, above the tabs, on
 every tab. Clicking it, or `Enter` on it in arrows navigation, does exactly what `v` does: it opens
@@ -62,6 +64,15 @@ while a PR you can approve is selected.
 
 The result shows in the footer: `✓ Approved #4`, or `✗ Approve #4 failed: <gh's error message>`.
 Errors stay for 12 s, take priority over background fetches, and are cut to fit the footer line.
+
+Next to it, `[ ⇣ Merge ]` (on the merged-PR purple) does exactly what `m` does: the footer asks
+`Are you sure you want to merge this PR? (y/N)`, and only `y` runs `gh pr merge` (which asks for
+the merge method in the terminal). It shows on open, non-draft PRs, your own included, and is hidden
+on draft, merged and closed ones. When the loaded PR data already says the merge is blocked, it is
+dimmed with the reason: `Merge (conflicts)`, `Merge (changes requested)`, `Merge (review required)`
+(still pressable: admins can bypass, and gh says why otherwise). The result shows as `✓ Merged #N`
+or `✗ Merge #N failed: <gh's error>`. The footer hint adds `m merge`. The focused button is in
+reverse video.
 
 ## Plain glyphs
 

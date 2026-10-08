@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
-	tea "charm.land/bubbletea/v2"
 	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/stretchr/testify/require"
 
+	"github.com/dlvhdr/gh-dash/v4/internal/config"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/constants"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/context"
 )
@@ -62,4 +63,14 @@ func TestApproveKey_OwnPRShowsError(t *testing.T) {
 	m.Update(tea.KeyPressMsg{Code: 'v', Text: "v"})
 	require.False(t, m.prView.GetIsApproving(), "v does not open the prompt on your own PR")
 	require.Contains(t, footerText(m), "✗ Can't approve your own PR #1")
+}
+
+func TestFooterHints_ApproveAndMerge(t *testing.T) {
+	m := newStatusTestModel(t, "other")
+	m.ctx.View = config.PRsView
+	m.footer.SetPRActions(true, true)
+	require.Contains(t, footerText(m), "v approve · m merge")
+	m.footer.SetPRActions(false, true) // own PR
+	require.NotContains(t, footerText(m), "v approve")
+	require.Contains(t, footerText(m), "m merge")
 }

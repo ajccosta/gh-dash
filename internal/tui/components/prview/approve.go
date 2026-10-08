@@ -69,7 +69,7 @@ func (m *Model) CanApprove() bool {
 
 func (m *Model) SetApproveFocused(focused bool) {
 	m.approveFocused = focused
-	m.carousel.SetHighlighted(m.focused && !focused)
+	m.carousel.SetHighlighted(m.focused && !focused && !m.mergeFocused)
 }
 
 func (m *Model) IsApproveFocused() bool {

@@ -873,6 +873,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			(m.ctx.View == config.PRsView || m.notificationView.GetSubjectPR() != nil) {
 			return m, m.approveCurrentPR()
 		}
+		if zone.Get(prview.MergeZoneId).InBounds(msg) && m.sidebar.IsOpen &&
+			(m.ctx.View == config.PRsView || m.notificationView.GetSubjectPR() != nil) {
+			return m, m.mergeCurrentPR()
+		}
 		if zone.Get("donate").InBounds(msg) {
 			log.Info("Donate clicked", "msg", msg)
 			openCmd := func() tea.Msg {
@@ -1018,8 +1022,8 @@ func (m *Model) View() tea.View {
 				)),
 		)
 	} else {
-		m.footer.SetPRSelected(m.ctx.View == config.PRsView && m.getCurrRowData() != nil &&
-			m.prView.CanApprove())
+		prSelected := m.ctx.View == config.PRsView && m.getCurrRowData() != nil
+		m.footer.SetPRActions(prSelected && m.prView.CanApprove(), prSelected && m.prView.CanMerge())
 		s.WriteString(m.footer.View())
 	}
 
