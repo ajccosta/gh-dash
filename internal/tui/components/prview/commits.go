@@ -41,6 +41,13 @@ func (m *Model) renderCommits() string {
 			faint.Render(constants.VerticalCommitIcon),
 			main.Render(commit.MessageHeadline),
 		)
+		if m.commitSelected(i) {
+			left = fmt.Sprintf(
+				"%s %s",
+				m.ctx.Styles.Common.MainTextStyle.Bold(true).Render(CommitCursorMarker),
+				m.ctx.Styles.Common.MainTextStyle.Bold(true).Reverse(true).Render(commit.MessageHeadline),
+			)
+		}
 		right := faint.Render(commit.AbbreviatedOid)
 		wright := lipgloss.Width(right)
 		left = ansi.Truncate(left, max(0, m.getIndentedContentWidth()-wright-1), constants.Ellipsis)
@@ -75,6 +82,10 @@ func (m *Model) renderCommits() string {
 	}
 
 	res := heading
+	if m.focused {
+		res = lipgloss.JoinVertical(lipgloss.Left, res,
+			faint.MarginBottom(1).Render("↑/↓ select · enter/d diff · tab/esc back to list"))
+	}
 	for i, r := range rendered {
 		res = lipgloss.JoinVertical(lipgloss.Left, res, r)
 		if i < len(rendered)-1 {

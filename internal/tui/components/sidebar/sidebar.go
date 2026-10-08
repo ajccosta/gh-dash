@@ -141,3 +141,23 @@ func (m *Model) UpdateProgramContext(ctx *context.ProgramContext) {
 	}
 	m.viewport.SetWidth(m.GetSidebarContentWidth())
 }
+
+// ScrollLines scrolls the pane down (n > 0) or up by n lines.
+func (m *Model) ScrollLines(n int) {
+	if n > 0 {
+		m.viewport.ScrollDown(n)
+	} else if n < 0 {
+		m.viewport.ScrollUp(-n)
+	}
+}
+
+// EnsureLineVisible scrolls just enough for content line `line` to be shown.
+func (m *Model) EnsureLineVisible(line int) {
+	top := m.viewport.YOffset()
+	height := m.viewport.Height()
+	if line < top {
+		m.viewport.SetYOffset(line)
+	} else if height > 0 && line >= top+height {
+		m.viewport.SetYOffset(line - height + 1)
+	}
+}

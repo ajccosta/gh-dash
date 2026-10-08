@@ -40,6 +40,8 @@ type Model struct {
 	carousel        carousel.Model
 	editor          cmpcontroller.Controller
 	summaryViewMore bool
+	focused         bool // preview has focus ("arrows" navigation)
+	commitCursor    int  // selected commit on the Commits tab
 }
 
 var tabs = []string{" Overview", " Activity", " Commits", " Checks", " Files Changed"}
@@ -555,6 +557,10 @@ func (m *Model) SetSectionId(id int) {
 }
 
 func (m *Model) SetRow(d *prrow.Data) {
+	if d == nil || m.pr == nil || m.pr.Data.Primary == nil || d.Primary == nil ||
+		d.Primary.Url != m.pr.Data.Primary.Url {
+		m.commitCursor = 0 // a different PR: start again from its first commit
+	}
 	if d == nil {
 		m.pr = nil
 	} else {

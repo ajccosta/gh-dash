@@ -112,6 +112,10 @@ type PreviewConfig struct {
 	Width    float64 `yaml:"width"              validate:"gt=0"`
 	Height   float64 `yaml:"height,omitempty"`
 	Position string  `yaml:"position,omitempty"`
+	// Navigation picks how the preview pane is driven: "keys" (or unset) uses
+	// [ and ] for its tabs; "arrows" also lets ←/→ cycle the tabs and Tab
+	// focus the pane, where ↑/↓ pick a commit and Enter shows its diff.
+	Navigation string `yaml:"navigation,omitempty" validate:"omitempty,oneof=keys arrows"`
 }
 
 type NullableBool struct {

@@ -241,6 +241,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
+		if cmd, handled := m.handleArrowNav(msg); handled {
+			return m, cmd
+		}
+
 		switch {
 		case m.isUserDefinedKeybinding(msg):
 			cmd = m.executeKeybinding(msg.String())

@@ -168,6 +168,7 @@ type StatusCheckRollupStats struct {
 type AllCommits struct {
 	Nodes []struct {
 		Commit struct {
+			Oid             string
 			AbbreviatedOid  string
 			CommittedDate   time.Time
 			MessageHeadline string
