@@ -67,24 +67,24 @@ func (n *Notification) renderType() string {
 	case "Issue":
 		// Use state-based icons/colors matching issuerow.go
 		if n.Data.SubjectState == "CLOSED" {
-			icon = ""
+			icon = "✓"
 			style = style.Foreground(n.Ctx.Styles.Colors.ClosedPR)
 		} else {
-			icon = ""
+			icon = "●"
 			style = style.Foreground(n.Ctx.Styles.Colors.OpenIssue)
 		}
 	case "Discussion":
-		icon = ""
+		icon = "✎"
 		style = style.Foreground(
 			compat.AdaptiveColor{Light: lipgloss.Color("#000000"), Dark: lipgloss.Color("#ffffff")},
 		)
 	case "Release":
-		icon = ""
+		icon = "◆"
 		style = style.Foreground(
 			compat.AdaptiveColor{Light: lipgloss.Color("#0969da"), Dark: lipgloss.Color("#58a6ff")},
 		)
 	case "Commit":
-		icon = ""
+		icon = "•"
 		style = style.Foreground(n.Ctx.Theme.SecondaryText)
 	case "CheckSuite":
 		// Parse title to determine workflow status (similar to gitify approach)
@@ -152,7 +152,7 @@ func (n *Notification) renderTitleBlock() string {
 		bookmarkPrefix := utils.GetStylePrefix(
 			lipgloss.NewStyle().Foreground(n.Ctx.Theme.WarningText),
 		)
-		line1 = line1 + " " + bookmarkPrefix + ""
+		line1 = line1 + " " + bookmarkPrefix + "★"
 	}
 	line1Rendered := repoPrefix + line1
 

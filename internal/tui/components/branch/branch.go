@@ -35,14 +35,14 @@ func (b *Branch) renderReviewStatus() string {
 		reviewCellStyle = reviewCellStyle.Foreground(
 			b.Ctx.Theme.SuccessText,
 		)
-		return reviewCellStyle.Render("󰄬")
+		return reviewCellStyle.Render("✓")
 	}
 
 	if b.PR.ReviewDecision == "CHANGES_REQUESTED" {
 		reviewCellStyle = reviewCellStyle.Foreground(
 			b.Ctx.Theme.ErrorText,
 		)
-		return reviewCellStyle.Render("")
+		return reviewCellStyle.Render("±")
 	}
 
 	return reviewCellStyle.Render(b.Ctx.Styles.Common.WaitingGlyph)
@@ -52,7 +52,7 @@ func (b *Branch) renderState() string {
 	mergeCellStyle := lipgloss.NewStyle()
 
 	if b.PR == nil {
-		return mergeCellStyle.Foreground(b.Ctx.Theme.SuccessText).Render("󰜛")
+		return mergeCellStyle.Foreground(b.Ctx.Theme.SuccessText).Render("•")
 	}
 
 	switch b.PR.State {

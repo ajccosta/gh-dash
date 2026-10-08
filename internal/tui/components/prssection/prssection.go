@@ -277,7 +277,7 @@ func GetSectionColumns(
 	if !ctx.Config.Theme.Ui.Table.Compact {
 		return []table.Column{
 			{
-				Title:  "",
+				Title:  "",
 				Width:  utils.IntPtr(3),
 				Hidden: stateLayout.Hidden,
 			},
@@ -307,28 +307,28 @@ func GetSectionColumns(
 				Hidden: numCommentsLayout.Hidden,
 			},
 			{
-				Title:  "󰯢",
+				Title:  "Rv",
 				Width:  utils.IntPtr(4),
 				Hidden: reviewStatusLayout.Hidden,
 			},
 			{
-				Title:  "",
+				Title:  "CI",
 				Width:  &ctx.Styles.PrSection.CiCellWidth,
 				Grow:   new(bool),
 				Hidden: ciLayout.Hidden,
 			},
 			{
-				Title:  "",
+				Title:  "±",
 				Width:  linesLayout.Width,
 				Hidden: linesLayout.Hidden,
 			},
 			{
-				Title:  "󱦻",
+				Title:  "Upd",
 				Width:  updatedAtLayout.Width,
 				Hidden: updatedAtLayout.Hidden,
 			},
 			{
-				Title:  "󱡢",
+				Title:  "Age",
 				Width:  createdAtLayout.Width,
 				Hidden: createdAtLayout.Hidden,
 			},
@@ -337,12 +337,12 @@ func GetSectionColumns(
 
 	return []table.Column{
 		{
-			Title:  "",
+			Title:  "",
 			Width:  utils.IntPtr(3),
 			Hidden: stateLayout.Hidden,
 		},
 		{
-			Title:  "",
+			Title:  "Repo",
 			Width:  repoLayout.Width,
 			Hidden: repoLayout.Hidden,
 		},
@@ -377,28 +377,28 @@ func GetSectionColumns(
 			Hidden: numCommentsLayout.Hidden,
 		},
 		{
-			Title:  "󰯢",
+			Title:  "Rv",
 			Width:  utils.IntPtr(4),
 			Hidden: reviewStatusLayout.Hidden,
 		},
 		{
-			Title:  "",
+			Title:  "CI",
 			Width:  &ctx.Styles.PrSection.CiCellWidth,
 			Grow:   new(bool),
 			Hidden: ciLayout.Hidden,
 		},
 		{
-			Title:  "",
+			Title:  "±",
 			Width:  linesLayout.Width,
 			Hidden: linesLayout.Hidden,
 		},
 		{
-			Title:  "󱦻",
+			Title:  "Upd",
 			Width:  updatedAtLayout.Width,
 			Hidden: updatedAtLayout.Hidden,
 		},
 		{
-			Title:  "󱡢",
+			Title:  "Age",
 			Width:  createdAtLayout.Width,
 			Hidden: createdAtLayout.Hidden,
 		},

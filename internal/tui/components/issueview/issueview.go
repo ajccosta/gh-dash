@@ -180,10 +180,10 @@ func (m *Model) renderStatusPill() string {
 	switch m.issue.Data.State {
 	case "OPEN":
 		bgColor = m.ctx.Styles.Colors.OpenIssue.Dark
-		content = " Open"
+		content = "● Open"
 	case "CLOSED":
 		bgColor = m.ctx.Styles.Colors.ClosedIssue.Dark
-		content = " Closed"
+		content = "✓ Closed"
 	}
 
 	return m.ctx.Styles.PrView.PillStyle.

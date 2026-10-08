@@ -263,7 +263,7 @@ func GetSectionColumns(
 	if !ctx.Config.Theme.Ui.Table.Compact {
 		return []table.Column{
 			{
-				Title:  "",
+				Title:  "",
 				Width:  utils.IntPtr(3),
 				Hidden: stateLayout.Hidden,
 			},
@@ -283,23 +283,23 @@ func GetSectionColumns(
 				Hidden: baseLayout.Hidden,
 			},
 			{
-				Title:  "󰯢",
+				Title:  "Rv",
 				Width:  utils.IntPtr(4),
 				Hidden: reviewStatusLayout.Hidden,
 			},
 			{
-				Title:  "",
+				Title:  "CI",
 				Width:  &ctx.Styles.PrSection.CiCellWidth,
 				Grow:   new(bool),
 				Hidden: ciLayout.Hidden,
 			},
 			{
-				Title:  "",
+				Title:  "±",
 				Width:  linesLayout.Width,
 				Hidden: linesLayout.Hidden,
 			},
 			{
-				Title:  "",
+				Title:  "Upd",
 				Width:  updatedAtLayout.Width,
 				Hidden: updatedAtLayout.Hidden,
 			},
@@ -308,12 +308,12 @@ func GetSectionColumns(
 
 	return []table.Column{
 		{
-			Title:  "",
+			Title:  "",
 			Width:  utils.IntPtr(3),
 			Hidden: stateLayout.Hidden,
 		},
 		{
-			Title:  "",
+			Title:  "Repo",
 			Width:  repoLayout.Width,
 			Hidden: repoLayout.Hidden,
 		},
@@ -338,23 +338,23 @@ func GetSectionColumns(
 			Hidden: baseLayout.Hidden,
 		},
 		{
-			Title:  "󰯢",
+			Title:  "Rv",
 			Width:  utils.IntPtr(4),
 			Hidden: reviewStatusLayout.Hidden,
 		},
 		{
-			Title:  "",
+			Title:  "CI",
 			Width:  &ctx.Styles.PrSection.CiCellWidth,
 			Grow:   new(bool),
 			Hidden: ciLayout.Hidden,
 		},
 		{
-			Title:  "",
+			Title:  "±",
 			Width:  linesLayout.Width,
 			Hidden: linesLayout.Hidden,
 		},
 		{
-			Title:  "",
+			Title:  "Upd",
 			Width:  updatedAtLayout.Width,
 			Hidden: updatedAtLayout.Hidden,
 		},
@@ -550,11 +550,11 @@ func (m *Model) GetTotalCount() int {
 func (m *Model) GetPagerContent() string {
 	s := lipgloss.NewStyle().Background(m.Ctx.Styles.ListViewPort.PagerStyle.GetBackground())
 	mod := s.Foreground(lipgloss.Color("#e0af68")).Render(
-		fmt.Sprintf(" %d", len(m.repo.Status.Modified)))
+		fmt.Sprintf("~ %d", len(m.repo.Status.Modified)))
 	plus := s.Foreground(m.Ctx.Theme.SuccessText).Render(
-		fmt.Sprintf(" %d", len(m.repo.Status.Added)))
+		fmt.Sprintf("+ %d", len(m.repo.Status.Added)))
 	minus := s.Foreground(m.Ctx.Theme.ErrorText).Render(
-		fmt.Sprintf(" %d", len(m.repo.Status.Removed)))
+		fmt.Sprintf("- %d", len(m.repo.Status.Removed)))
 	spacer := s.Render(" ")
 	return m.Ctx.Styles.ListViewPort.PagerStyle.Render(
 		lipgloss.JoinHorizontal(lipgloss.Top, plus, spacer, minus, spacer, mod))

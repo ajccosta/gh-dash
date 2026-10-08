@@ -28,33 +28,34 @@ type Dimensions struct {
 const (
 	Ellipsis = "…"
 
-	ApprovedIcon         = "󰄬"
-	ChangesRequestedIcon = ""
-	DotIcon              = ""
+	// Icons are plain characters that render in any monospace font (no Nerd Font).
+	ApprovedIcon         = "✓"
+	ChangesRequestedIcon = "±"
+	DotIcon              = "●"
 	SmallDotIcon         = "⋅"
 	HorizontalLineIcon   = "─"
-	EmptyIcon            = ""
-	FailureIcon          = "󰅙"
-	PersonIcon           = ""
-	SuccessIcon          = ""
-	TeamIcon             = ""
-	WaitingIcon          = ""
-	ActionRequiredIcon   = "" // nf-cod-warning (matches GitHub UI)
+	EmptyIcon            = "-"
+	FailureIcon          = "✗"
+	PersonIcon           = "@"
+	SuccessIcon          = "✓"
+	TeamIcon             = "#"
+	WaitingIcon          = "…"
+	ActionRequiredIcon   = "!" // matches GitHub UI
 
-	BehindIcon         = "󰇮"
-	BlockedIcon        = ""
-	ClosedIcon         = ""
-	CodeReviewIcon     = ""
-	CommentIcon        = ""
-	CommentsIcon       = ""
-	DonateIcon         = "󱃱"
-	DraftIcon          = ""
-	CommitIcon         = ""
-	VerticalCommitIcon = "󰜘"
-	LabelsIcon         = "󰌖"
-	MergedIcon         = ""
-	MergeQueueIcon     = "" // \uf4db nf-oct-git_merge_queue
-	OpenIcon           = ""
+	BehindIcon         = "↓"
+	BlockedIcon        = "!"
+	ClosedIcon         = "✗"
+	CodeReviewIcon     = "@"
+	CommentIcon        = "✎"
+	CommentsIcon       = "✎"
+	DonateIcon         = "♥"
+	DraftIcon          = "○"
+	CommitIcon         = "•"
+	VerticalCommitIcon = "○"
+	LabelsIcon         = "Labels"
+	MergedIcon         = "◆"
+	MergeQueueIcon     = "≡"
+	OpenIcon           = "●"
 	SelectionIcon      = "→"
 
 	AutocompleteColumnGap              = 2
@@ -64,29 +65,29 @@ const (
 	AutocompletePreferredValueRatioDen = 3
 
 	// New contributors: users who created a PR for the repo for the first time
-	NewContributorIcon = "󰎔" // \udb80\udf94 nf-md-new_box
+	NewContributorIcon = "✦"
 
 	// Contributors: everyone who has contributed something back to the project
-	ContributorIcon = "" // \uedc6 nf-fa-user_check
+	ContributorIcon = "+"
 
 	// Collaborator is a person who isn't explicitly a member of your organization,
 	// but who has Read, Write, or Admin permissions to one or more repositories in your organization.
-	CollaboratorIcon = "" // \uedcf nf-fa-user_shield
+	CollaboratorIcon = "◇"
 
 	// A member of the organization
-	MemberIcon = "" // \uf42b nf-oct-organization
+	MemberIcon = "◆"
 
 	// The person/s who has administrative ownership over the organization or repository (not always the same as the original author)
-	OwnerIcon = "" // \uf511 nf-oct-shield_lock
+	OwnerIcon = "★"
 
-	UnknownRoleIcon = "󰭙" // \udb82\udf59 nf-md-account_question
+	UnknownRoleIcon = "?"
 
 	// Notification type icons
-	WorkflowIcon     = "" // \uf52e nf-oct-checklist (for CheckSuite/CI)
-	WorkflowRunIcon  = "" // \uebd6 nf-cod-workflow (for CheckSuite default)
-	SecurityIcon     = "󰒃" // \udb80\udc83 nf-md-shield_alert (for security alerts)
-	NotificationIcon = "" // \ueaa2 nf-cod-bell (generic notification fallback)
-	SearchIcon       = "" // \uf002 nf-fa-search
+	WorkflowIcon     = "▸" // for CheckSuite/CI
+	WorkflowRunIcon  = "▸" // for CheckSuite default
+	SecurityIcon     = "!" // for security alerts
+	NotificationIcon = "•" // generic notification fallback
+	SearchIcon       = "/"
 
 	// Prompts
 	AssignPrompt   = "Assign users (whitespace-separated)" + Ellipsis

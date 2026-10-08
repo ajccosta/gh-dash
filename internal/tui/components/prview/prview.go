@@ -44,7 +44,7 @@ type Model struct {
 	commitCursor    int  // selected commit on the Commits tab
 }
 
-var tabs = []string{" Overview", " Activity", " Commits", " Checks", " Files Changed"}
+var tabs = []string{"Overview", "Activity", "Commits", "Checks", "Files Changed"}
 
 func NewModel(ctx *context.ProgramContext) Model {
 	c := carousel.NewModel(
@@ -195,13 +195,13 @@ func (m *Model) viewOverviewTab() string {
 	body.WriteString(m.renderSummary())
 	body.WriteString("\n\n")
 	body.WriteString(
-		m.ctx.Styles.Common.MainTextStyle.MarginBottom(1).Underline(true).Render(" Changes"),
+		m.ctx.Styles.Common.MainTextStyle.MarginBottom(1).Underline(true).Render("Changes"),
 	)
 	body.WriteString("\n")
 	body.WriteString(m.renderChangesOverview())
 	body.WriteString("\n\n")
 	body.WriteString(
-		m.ctx.Styles.Common.MainTextStyle.MarginBottom(1).Underline(true).Render(" Checks"),
+		m.ctx.Styles.Common.MainTextStyle.MarginBottom(1).Underline(true).Render("Checks"),
 	)
 	body.WriteString("\n")
 	body.WriteString(m.renderChecksOverview())
@@ -260,7 +260,7 @@ func (m *Model) renderBranches() string {
 		" ",
 		lipgloss.NewStyle().
 			Foreground(m.ctx.Theme.SecondaryText).
-			Render(m.pr.Data.Primary.BaseRefName+"  "+m.pr.Data.Primary.HeadRefName))
+			Render(m.pr.Data.Primary.BaseRefName+" ← "+m.pr.Data.Primary.HeadRefName))
 }
 
 func (m *Model) renderStatusPill() string {
@@ -501,7 +501,7 @@ func (m *Model) renderSummary() string {
 	body := htmlCommentRegex.ReplaceAllString(m.pr.Data.Enriched.Body, "")
 	body = lineCleanupRegex.ReplaceAllString(body, "")
 
-	desc := m.ctx.Styles.Common.MainTextStyle.Bold(true).Underline(true).Render(" Summary")
+	desc := m.ctx.Styles.Common.MainTextStyle.Bold(true).Underline(true).Render("Summary")
 	title := lipgloss.JoinVertical(
 		lipgloss.Left,
 		desc,

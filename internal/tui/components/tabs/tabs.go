@@ -102,7 +102,7 @@ func (m Model) viewNewSectionButton() string {
 			lipgloss.JoinHorizontal(lipgloss.Top,
 				lipgloss.NewStyle().
 					Foreground(m.ctx.Styles.Colors.SuccessText).
-					Render("󱅃 "),
+					Render("+ "),
 				keys.Keys.NewSection.Help().Key,
 			))
 }
@@ -220,7 +220,7 @@ func (m *Model) viewLogo() string {
 			version,
 			lipgloss.NewStyle().
 				Foreground(m.ctx.Styles.Colors.SuccessText).
-				Render("  Update available!"),
+				Render(" ↑ Update available!"),
 		)
 	}
 

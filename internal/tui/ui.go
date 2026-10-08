@@ -1737,7 +1737,7 @@ func (m *Model) renderRunningTask() string {
 		stats = lipgloss.NewStyle().
 			Foreground(m.ctx.Theme.FaintText).
 			Background(m.ctx.Theme.SelectedBackground).
-			Render(fmt.Sprintf("[ %d] ", numProcessing))
+			Render(fmt.Sprintf("[%d tasks] ", numProcessing))
 	}
 
 	return lipgloss.NewStyle().

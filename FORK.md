@@ -48,6 +48,11 @@ The Issues and Notifications views get the view switcher, the sections bar and t
 The commit diff comes from `gh api` (no local clone needed) and is shown with `pager.diff`
 (`less` by default, coloured here; `delta` and similar get the raw diff). Every other key keeps its usual meaning.
 
+## Plain glyphs
+
+No Nerd Font needed: every icon is a plain character (`✓ ✗ ● ○ ◆ ± ✎ … ↑ ↓ ← →` and ASCII),
+and icon-only column headers are short words (`Repo`, `CI`, `Upd`, `Age`, `Labels`).
+
 ## Building without a global Go
 
 ```bash
