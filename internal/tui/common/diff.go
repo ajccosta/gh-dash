@@ -22,7 +22,8 @@ func DiffPR(prNumber int, repoName string, env []string) tea.Cmd {
 		"-R",
 		repoName,
 	)
-	c.Env = env
+	// GHDIFF_TITLE names the diff in ghdiff's title bar; other pagers ignore it.
+	c.Env = append(env, fmt.Sprintf("GHDIFF_TITLE=%s#%d", repoName, prNumber))
 
 	return tea.ExecProcess(c, func(err error) tea.Msg {
 		if err != nil {
@@ -71,7 +72,7 @@ func DiffCommit(repoName string, oid string, pager string, env []string) tea.Cmd
 		}
 
 		c := exec.Command("sh", "-c", pager+` < "$1"`, "sh", f.Name())
-		c.Env = env
+		c.Env = append(env, fmt.Sprintf("GHDIFF_TITLE=%s @ %s", repoName, oid[:min(7, len(oid))]))
 		return tea.ExecProcess(c, func(err error) tea.Msg {
 			os.Remove(f.Name())
 			if err != nil {

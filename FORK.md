@@ -47,3 +47,8 @@ gh extension install .  # after `gh extension remove dash`
 ```
 
 `env.sh.local` sets `GOROOT=.toolchain/go`, `GOPATH`/`GOCACHE`/`GOMODCACHE` under `.toolchain/`, `GOTOOLCHAIN=local`.
+
+## Diff viewer
+
+Set `pager.diff` to [ghdiff](../ghdiff) (`~/Work/ghdiff/ghdiff`) for a GitHub-style view of PR and
+commit diffs. gh-dash passes the diff's name in `GHDIFF_TITLE`.
