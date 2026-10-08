@@ -188,11 +188,11 @@ var Keys = &KeyMap{
 	),
 	NextSection: key.NewBinding(
 		key.WithKeys("right", "l"),
-		key.WithHelp("󰁔/l", "next section"),
+		key.WithHelp("→/l", "next section"),
 	),
 	PrevSection: key.NewBinding(
 		key.WithKeys("left", "h"),
-		key.WithHelp("󰁍/h", "previous section"),
+		key.WithHelp("←/h", "previous section"),
 	),
 	Search: key.NewBinding(
 		key.WithKeys("/"),

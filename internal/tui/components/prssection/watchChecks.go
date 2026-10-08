@@ -59,7 +59,7 @@ func (m *Model) watchChecks() tea.Cmd {
 			}
 
 			renderedPr := prrow.PullRequest{Ctx: m.Ctx, Data: prData}
-			checksRollup := " Checks are pending"
+			checksRollup := "⏳ Checks are pending"
 			switch renderedPr.GetStatusChecksRollup() {
 			case "SUCCESS":
 				checksRollup = "✅ Checks have passed"

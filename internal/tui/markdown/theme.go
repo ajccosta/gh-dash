@@ -106,7 +106,7 @@ var CustomDarkStyleConfig = ansi.StyleConfig{
 		Underline:   boolPtr(false),
 		BlockPrefix: "",
 		BlockSuffix: "",
-		Format:      "",
+		Format:      "↗",
 	},
 	LinkText: ansi.StylePrimitive{
 		Color: stringPtr("#666CA6"),
@@ -116,12 +116,12 @@ var CustomDarkStyleConfig = ansi.StyleConfig{
 		Underline: boolPtr(false),
 		Color:     stringPtr("#666CA6"),
 		Bold:      boolPtr(false),
-		Format:    "",
+		Format:    "▣",
 	},
 	ImageText: ansi.StylePrimitive{
 		Color:  stringPtr("#666CA6"),
 		Bold:   boolPtr(true),
-		Format: "",
+		Format: "↗",
 	},
 	Code: ansi.StyleBlock{
 		StylePrimitive: ansi.StylePrimitive{

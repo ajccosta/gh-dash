@@ -47,7 +47,7 @@ func NewModel(ctx *context.ProgramContext, opts SearchOptions) Model {
 			Blink: true,
 		},
 	})
-	ti.Prompt = fmt.Sprintf(" %s ", opts.Prefix)
+	ti.Prompt = fmt.Sprintf("/ %s ", opts.Prefix)
 
 	ti.Blur()
 	ti.SetValue(opts.InitialValue)

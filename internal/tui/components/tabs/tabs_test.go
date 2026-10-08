@@ -26,7 +26,7 @@ import (
 // 		m := newTestModel(t, cfg)
 // 		tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(80, 30))
 //
-// 		testutils.WaitForText(t, tm, "  |  Mine   ⣻   |  Review   ⣻   |  All   ⣻")
+// 		testutils.WaitForText(t, tm, "/  |  Mine   ⣻   |  Review   ⣻   |  All   ⣻")
 // 		tm.Quit()
 //
 // 		fm := tm.FinalModel(t)
@@ -45,9 +45,9 @@ import (
 // 		m := newTestModel(t, cfg)
 // 		tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(80, 30))
 //
-// 		testutils.WaitForText(t, tm, "  |  Mine   ⣻   |  Review   ⣻   |  All   ⣻")
+// 		testutils.WaitForText(t, tm, "/  |  Mine   ⣻   |  Review   ⣻   |  All   ⣻")
 // 		tm.Send(dataFetchedMsg{})
-// 		testutils.WaitForText(t, tm, "  |  Mine (10)  |  Review (10)  |  All (10)")
+// 		testutils.WaitForText(t, tm, "/  |  Mine (10)  |  Review (10)  |  All (10)")
 // 		tm.Quit()
 //
 // 		fm := tm.FinalModel(t)
@@ -66,12 +66,12 @@ import (
 // 		m := newTestModel(t, cfg)
 // 		tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(80, 30))
 //
-// 		testutils.WaitForText(t, tm, "  |  Mine   ⣻   |  Review   ⣻   |  All   ⣻")
+// 		testutils.WaitForText(t, tm, "/  |  Mine   ⣻   |  Review   ⣻   |  All   ⣻")
 // 		tm.Send(dataFetchedMsg{})
-// 		testutils.WaitForText(t, tm, "  |  Mine (10)  |  Review (10)  |  All (10)")
+// 		testutils.WaitForText(t, tm, "/  |  Mine (10)  |  Review (10)  |  All (10)")
 //
 // 		tm.Send(changeTabsMsg{})
-// 		testutils.WaitForText(t, tm, "  |  Mine New   ⣻   |  Review New   ⣻   |  All New   ⣻")
+// 		testutils.WaitForText(t, tm, "/  |  Mine New   ⣻   |  Review New   ⣻   |  All New   ⣻")
 //
 // 		tm.Quit()
 //
@@ -105,9 +105,9 @@ import (
 //
 // 		tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(80, 30))
 //
-// 		testutils.WaitForText(t, tm, "  |  1. Very long title   ⣻   |  2. Title   ⣻   |  3. Title   ⣻   |  … →")
+// 		testutils.WaitForText(t, tm, "/  |  1. Very long title   ⣻   |  2. Title   ⣻   |  3. Title   ⣻   |  … →")
 // 		tm.Send(dataFetchedMsg{})
-// 		testutils.WaitForText(t, tm, "  |  1. Very long title (10)  |  2. Title (10)  |  3. Title (10)  |  … →")
+// 		testutils.WaitForText(t, tm, "/  |  1. Very long title (10)  |  2. Title (10)  |  3. Title (10)  |  … →")
 // 		for i := 0; i < len(m.ctx.Config.PRSections); i++ {
 // 			tm.Send(tea.KeyMsg{
 // 				Type:  tea.KeyRunes,
@@ -179,7 +179,7 @@ func (m testModel) Update(msg tea.Msg) (testModel, tea.Cmd) {
 		}
 	case initMsg:
 		sections := make([]section.Section, 0)
-		search := testdata.TestSection{Config: config.SectionConfig{Title: ""}}
+		search := testdata.TestSection{Config: config.SectionConfig{Title: "/"}}
 		sections = append(sections, &search)
 		for _, cfg := range m.ctx.Config.PRSections {
 			s := testdata.TestSection{Config: config.SectionConfig{Title: cfg.Title}}
@@ -196,7 +196,7 @@ func (m testModel) Update(msg tea.Msg) (testModel, tea.Cmd) {
 
 	case changeTabsMsg:
 		sections := make([]section.Section, 0)
-		search := testdata.TestSection{Config: config.SectionConfig{Title: ""}}
+		search := testdata.TestSection{Config: config.SectionConfig{Title: "/"}}
 		sections = append(sections, &search)
 		for _, cfg := range m.ctx.Config.PRSections {
 			s := testdata.TestSection{Config: config.SectionConfig{Title: cfg.Title + " New"}}

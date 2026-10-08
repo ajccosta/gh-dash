@@ -457,7 +457,7 @@ func GetSectionColumns(ctx *context.ProgramContext) []table.Column {
 			Align: func() *lipgloss.Position { p := lipgloss.Right; return &p }(),
 		},
 		{
-			Title: "󱦻    ",          // Trailing padding to center when right-aligned
+			Title: "Updated  ",      // Trailing padding to center when right-aligned
 			Width: utils.IntPtr(12), // Updated at (e.g., "12mo ago")
 			Align: func() *lipgloss.Position { p := lipgloss.Right; return &p }(),
 		},

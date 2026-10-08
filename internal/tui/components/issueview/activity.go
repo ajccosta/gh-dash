@@ -56,7 +56,7 @@ func (m Model) renderActivitiesTitle() string {
 	return m.ctx.Styles.Common.MainTextStyle.
 		MarginBottom(1).
 		Underline(true).
-		Render(" Comments")
+		Render("Comments")
 }
 
 func renderEmptyState() string {

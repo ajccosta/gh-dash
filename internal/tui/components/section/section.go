@@ -441,7 +441,7 @@ func (m *BaseModel) GetMainContent() string {
 
 			fmt.Sprintf(
 				"%s you can change the search query by pressing %s and submitting it with %s",
-				lipgloss.NewStyle().Bold(true).Render(" Tip:"),
+				lipgloss.NewStyle().Bold(true).Render("Tip:"),
 				m.Ctx.Styles.Section.KeyStyle.Render("/"),
 				m.Ctx.Styles.Section.KeyStyle.Render("Enter"),
 			),

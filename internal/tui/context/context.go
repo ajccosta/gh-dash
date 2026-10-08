@@ -85,7 +85,7 @@ func (ctx *ProgramContext) GetViewSectionsConfig() []config.SectionConfig {
 		}
 	}
 
-	return append([]config.SectionConfig{{Title: ""}}, configs...)
+	return append([]config.SectionConfig{{Title: "/"}}, configs...)
 }
 
 func (ctx *ProgramContext) PreviewCursorPosition() tea.Position {

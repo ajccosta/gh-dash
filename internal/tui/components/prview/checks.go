@@ -188,7 +188,7 @@ func (m *Model) viewClosedStatus() string {
 		BorderForeground(m.ctx.Theme.FaintBorder).
 		Width(w)
 	return box.Render(m.viewCheckCategory(
-		"",
+		"✗",
 		"Closed with unmerged commits",
 		"This pull request is closed",
 		true,
@@ -423,7 +423,7 @@ func renderStatusContextName(statusContext data.StatusContext) string {
 func (sidebar *Model) renderChecks() string {
 	title := sidebar.ctx.Styles.Common.MainTextStyle.MarginBottom(1).
 		Underline(true).
-		Render(" All Checks")
+		Render("All Checks")
 
 	commits := sidebar.pr.Data.Enriched.Commits.Nodes
 	if len(commits) == 0 {

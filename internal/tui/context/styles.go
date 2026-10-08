@@ -171,7 +171,7 @@ func InitStyles(theme theme.Theme) Styles {
 		BorderForeground(theme.PrimaryBorder)
 
 	s.PrView.PillStyle = s.Common.MainTextStyle.
-		Border(lipgloss.Border{Left: "", Right: ""}, false, true, false, true).
+		Border(lipgloss.Border{Left: "▐", Right: "▌"}, false, true, false, true).
 		Foreground(theme.InvertedText)
 
 	s.Help.Text = lipgloss.NewStyle().Foreground(theme.SecondaryText)
