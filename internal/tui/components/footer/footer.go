@@ -7,7 +7,6 @@ import (
 
 	bbHelp "charm.land/bubbles/v2/help"
 	"charm.land/lipgloss/v2"
-	"charm.land/lipgloss/v2/compat"
 	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/dlvhdr/gh-dash/v4/internal/config"
@@ -17,8 +16,6 @@ import (
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/keys"
 	"github.com/dlvhdr/gh-dash/v4/internal/utils"
 )
-
-const viewSeparator = " │ "
 
 type Model struct {
 	ctx             *context.ProgramContext
@@ -112,53 +109,14 @@ func (m *Model) UpdateProgramContext(ctx *context.ProgramContext) {
 	m.help.Styles = ctx.Styles.Help.BubbleStyles
 }
 
-func (m *Model) renderViewButton(view config.ViewType) string {
-	isActive := m.ctx.View == view
-
-	// Define icons and labels for each view
-	var icon, label string
-	// Define icons - notifications has solid/outline variants
-	solidBell := ""
-	outlineBell := ""
-
-	switch view {
-	case config.NotificationsView:
-		if m.ctx.View == config.NotificationsView {
-			icon = solidBell
-		} else {
-			icon = outlineBell
-		}
-		label = ""
-	case config.PRsView:
-		icon = ""
-		label = " PRs"
-	case config.IssuesView:
-		icon = ""
-		label = " Issues"
+// viewHint tells how to switch views; the switcher itself is in the top bar.
+func (m *Model) viewHint() string {
+	hint := keys.SwitchViewKey(m.ctx.View) + " next view"
+	if m.ctx.Config != nil && m.ctx.Config.Defaults.Preview.Navigation == "arrows" &&
+		m.ctx.View != config.RepoView {
+		hint += " · ↑ to top bar, ←/→ pick view"
 	}
-
-	if isActive {
-		// Active: colored icon + prominent background
-		// Use gold for notifications bell, green for others
-		iconColor := m.ctx.Theme.SuccessText
-		if view == config.NotificationsView {
-			iconColor = compat.AdaptiveColor{
-				Light: lipgloss.Color("#B8860B"),
-				Dark:  lipgloss.Color("#FFD700"),
-			} // Gold
-		}
-		activeStyle := lipgloss.NewStyle().
-			Foreground(iconColor).
-			Background(m.ctx.Styles.ViewSwitcher.ActiveView.GetBackground()).
-			Bold(true)
-		if label != "" {
-			return activeStyle.Render(icon) + activeStyle.Render(label)
-		}
-		return activeStyle.Render(icon)
-	}
-
-	// Inactive: faint styling
-	return m.ctx.Styles.ViewSwitcher.InactiveView.Render(icon + label)
+	return hint
 }
 
 func (m *Model) renderViewSwitcher(ctx *context.ProgramContext) string {
@@ -178,12 +136,7 @@ func (m *Model) renderViewSwitcher(ctx *context.ProgramContext) string {
 
 	view := lipgloss.JoinHorizontal(
 		lipgloss.Top,
-		ctx.Styles.ViewSwitcher.ViewsSeparator.PaddingLeft(1).
-			Render(m.renderViewButton(config.NotificationsView)),
-		ctx.Styles.ViewSwitcher.ViewsSeparator.Render(viewSeparator),
-		m.renderViewButton(config.PRsView),
-		ctx.Styles.ViewSwitcher.ViewsSeparator.Render(viewSeparator),
-		m.renderViewButton(config.IssuesView),
+		ctx.Styles.ViewSwitcher.InactiveView.Padding(0, 1).Render(m.viewHint()),
 		lipgloss.NewStyle().Background(ctx.Styles.Common.FooterStyle.GetBackground()).Foreground(
 			ctx.Styles.ViewSwitcher.ViewsSeparator.GetBackground()).Render(" "),
 		repo,

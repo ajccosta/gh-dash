@@ -356,3 +356,18 @@ func rebindUniversal(universal []config.Keybinding) error {
 
 	return nil
 }
+
+// SwitchViewKey is the key that switches away from view, for the view switcher hint.
+func SwitchViewKey(view config.ViewType) string {
+	switch view {
+	case config.PRsView:
+		return PRKeys.ViewIssues.Help().Key
+	case config.IssuesView:
+		return IssueKeys.ViewPRs.Help().Key
+	case config.NotificationsView:
+		return NotificationKeys.SwitchToPRs.Help().Key
+	case config.RepoView:
+		return BranchKeys.ViewPRs.Help().Key
+	}
+	return ""
+}

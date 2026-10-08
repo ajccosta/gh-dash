@@ -3,6 +3,12 @@
 A fork of [dlvhdr/gh-dash](https://github.com/dlvhdr/gh-dash) (branch `arrow-nav`, based on v4.26.0)
 that adds an optional way to drive the preview pane with the arrow keys and to read a PR's commits one at a time.
 
+## Switching views
+
+The top bar starts with a view switcher, `Notifications │ PRs │ Issues  s`, with the current view
+highlighted and the key that cycles views (`s` unless rebound) after it. Upstream had it as icons
+in the footer; the footer now shows the hint instead (`s next view`).
+
 ## The option
 
 ```yaml
@@ -11,10 +17,10 @@ defaults:
     navigation: arrows   # "keys" or unset: upstream behaviour
 ```
 
-With `navigation: arrows`, the PRs view is three panes and the arrow keys move between them:
+With `navigation: arrows`, the PRs view is four panes and the arrow keys move between them:
 
 ```
-┌──────────────── sections bar ────────────────┐
+┌ views │ sections bar ────────────────────────┐
 ├─ PR list ──────────────┬─ preview ───────────┤
 │                        │ Overview … Files    │
 └────────────────────────┴─────────────────────┘
@@ -25,6 +31,9 @@ With `navigation: arrows`, the PRs view is three panes and the arrow keys move b
 | PR list | `↑` / `↓` | move between PRs; `↑` on the first PR focuses the sections bar |
 | PR list | `→` | focus the preview |
 | sections bar | `←` / `→` | switch section |
+| sections bar | `↑` | focus the view switcher |
+| view switcher | `←` / `→` | switch view (Notifications, PRs, Issues) |
+| view switcher | `↓` / `Enter` | back to the sections bar |
 | sections bar | `↓` / `Enter` | back to the pane you came from |
 | preview | `←` / `→` | previous / next tab; `←` on Overview focuses the PR list |
 | preview | `↑` / `↓` | Commits tab: select a commit; other tabs: scroll one line. `↑` at the top focuses the sections bar |
@@ -33,6 +42,8 @@ With `navigation: arrows`, the PRs view is three panes and the arrow keys move b
 | any | `Esc` | back to the PR list |
 
 The focused bar shows its selected tab in reverse video. `h`/`j`/`k`/`l` and every other key keep their usual meaning.
+The Issues and Notifications views get the view switcher, the sections bar and the list
+(`↑` on the first row focuses the sections bar); `←`/`→` and `Tab` in their list keep their usual meaning.
 
 The commit diff comes from `gh api` (no local clone needed) and is shown with `pager.diff`
 (`less` by default, coloured here; `delta` and similar get the raw diff). Every other key keeps its usual meaning.

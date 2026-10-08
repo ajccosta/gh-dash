@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -8,12 +9,15 @@ import (
 	"github.com/dlvhdr/gh-dash/v4/internal/config"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/common"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/prview"
+	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/tabs"
 )
 
 // The "arrows" preview navigation (defaults.preview.navigation) treats the PRs
-// view as three panes and moves between them with the arrow keys:
+// view as four panes and moves between them with the arrow keys:
 //
-//	┌──────────── sections bar ────────────┐   ←/→ switch section, ↓/enter/esc back down
+//	┌ views │ sections bar ────────────────┐   views: ←/→ switch view, ↓/enter → sections
+//	│                                      │   sections: ←/→ switch section, ↑ → views,
+//	│                                      │             ↓/enter/esc back down
 //	├─ PR list ────────┬─ preview ─────────┤
 //	│ ↑/↓ move         │ ←/→ tabs          │   list: ↑ on the first PR → sections,
 //	│ → preview        │ ↑/↓ commit/scroll │         → → preview
@@ -22,7 +26,8 @@ import (
 //
 // Tab toggles between the list and the preview, Esc returns to the list. The
 // focused bar shows its selected tab in reverse video. Every other key, and
-// h/j/k/l, keep their usual meaning.
+// h/j/k/l, keep their usual meaning. The Issues and Notifications views get the
+// views and sections bars and the list; their ←/→ and Tab keep their usual meaning.
 
 type pane int
 
@@ -30,22 +35,24 @@ const (
 	paneList pane = iota
 	paneSections
 	panePreview
+	paneViews // the view switcher left of the sections bar
 )
 
 func (m *Model) arrowNavEnabled() bool {
 	return m.ctx.Config.Defaults.Preview.Navigation == "arrows" &&
-		m.ctx.View == config.PRsView
+		m.ctx.View != config.RepoView
 }
 
 func (m *Model) setPane(p pane) {
-	if p == panePreview && !m.sidebar.IsOpen {
+	if p == panePreview && (!m.sidebar.IsOpen || m.ctx.View != config.PRsView) {
 		p = paneList
 	}
-	if p != paneSections {
+	if p == paneList || p == panePreview {
 		m.paneBelowSections = p
 	}
 	m.pane = p
 	m.tabs.SetFocused(p == paneSections)
+	m.tabs.SetViewsFocused(p == paneViews)
 	m.prView.SetFocused(p == panePreview)
 	m.syncSidebar()
 	m.ensureCommitCursorVisible()
@@ -59,13 +66,17 @@ func (m *Model) handleArrowNav(msg tea.KeyMsg) (tea.Cmd, bool) {
 		}
 		return nil, false
 	}
-	if m.pane == panePreview && !m.sidebar.IsOpen {
+	if m.pane == panePreview && (!m.sidebar.IsOpen || m.ctx.View != config.PRsView) {
 		m.setPane(paneList)
 	}
+	prs := m.ctx.View == config.PRsView
 
 	k := msg.String()
 	switch k {
 	case "tab":
+		if !prs {
+			return nil, false
+		}
 		if m.pane == panePreview {
 			m.setPane(paneList)
 		} else if m.getCurrRowData() != nil {
@@ -81,6 +92,29 @@ func (m *Model) handleArrowNav(msg tea.KeyMsg) (tea.Cmd, bool) {
 	}
 
 	switch m.pane {
+	case paneViews:
+		switch k {
+		case "left", "right":
+			i := slices.Index(tabs.Views, m.ctx.View)
+			if k == "left" {
+				i--
+			} else {
+				i++
+			}
+			if i < 0 || i >= len(tabs.Views) {
+				return nil, true
+			}
+			m.paneBelowSections = paneList
+			cmd := m.switchToView(tabs.Views[i])
+			m.setPane(paneViews)
+			return cmd, true
+		case "down", "enter":
+			m.setPane(paneSections)
+			return nil, true
+		case "up":
+			return nil, true
+		}
+
 	case paneSections:
 		switch k {
 		case "left", "right":
@@ -89,6 +123,7 @@ func (m *Model) handleArrowNav(msg tea.KeyMsg) (tea.Cmd, bool) {
 			m.setPane(m.paneBelowSections)
 			return nil, true
 		case "up":
+			m.setPane(paneViews)
 			return nil, true
 		}
 
@@ -100,12 +135,13 @@ func (m *Model) handleArrowNav(msg tea.KeyMsg) (tea.Cmd, bool) {
 				return nil, true
 			}
 			return nil, false
-		case "right":
-			if m.sidebar.IsOpen && m.getCurrRowData() != nil {
+		case "left", "right":
+			if !prs {
+				return nil, false
+			}
+			if k == "right" && m.sidebar.IsOpen && m.getCurrRowData() != nil {
 				m.setPane(panePreview)
 			}
-			return nil, true
-		case "left":
 			return nil, true
 		}
 
