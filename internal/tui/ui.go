@@ -579,7 +579,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						case prview.PRActionDiff:
 							if pr := m.notificationView.GetSubjectPR(); pr != nil {
 								cmd = common.DiffPR(pr.GetNumber(), pr.GetRepoNameWithOwner(),
-									m.ctx.Config.GetFullScreenDiffPagerEnv())
+									m.ctx.Config.GetFullScreenDiffPagerEnv(), m.ctx.Config.RepoPaths)
 							}
 							return m, cmd
 

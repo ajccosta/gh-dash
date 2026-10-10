@@ -55,14 +55,14 @@ func (m *Model) MoveCommitCursor(delta int) {
 
 // SelectedCommit returns the full hash of the selected commit and the
 // repository it belongs to, or empty strings if there is none.
-func (m *Model) SelectedCommit() (oid string, repo string) {
+func (m *Model) SelectedCommit() (oid string, repo string, prNumber int) {
 	n := m.numCommits()
 	if n == 0 || m.pr.Data.Primary == nil {
-		return "", ""
+		return "", "", 0
 	}
 	i := min(m.commitCursor, n-1)
 	return m.pr.Data.Enriched.AllCommits.Nodes[i].Commit.Oid,
-		m.pr.Data.Primary.GetRepoNameWithOwner()
+		m.pr.Data.Primary.GetRepoNameWithOwner(), m.pr.Data.Primary.GetNumber()
 }
 
 func (m *Model) commitSelected(i int) bool {

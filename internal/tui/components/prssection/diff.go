@@ -16,5 +16,6 @@ func (m Model) diff() tea.Cmd {
 		currRowData.GetNumber(),
 		currRowData.GetRepoNameWithOwner(),
 		m.Ctx.Config.GetFullScreenDiffPagerEnv(),
+		m.Ctx.Config.RepoPaths,
 	)
 }
