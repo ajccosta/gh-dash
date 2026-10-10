@@ -93,4 +93,6 @@ gh extension install .  # after `gh extension remove dash`
 ## Diff viewer
 
 Set `pager.diff` to [ghdiff](../ghdiff) (`~/Work/ghdiff/ghdiff`) for a GitHub-style view of PR and
-commit diffs. gh-dash passes the diff's name in `GHDIFF_TITLE`.
+commit diffs. gh-dash passes the diff's name in `GHDIFF_TITLE`, and the PR in `GHDIFF_REPO`,
+`GHDIFF_PR`, `GHDIFF_COMMIT` (commit diffs) and `GHDIFF_REPO_PATH` (from `repoPaths`), so ghdiff's
+Ask Claude can read the local clone. Other pagers ignore these.

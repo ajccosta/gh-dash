@@ -254,12 +254,12 @@ func (m *Model) handleArrowNav(msg tea.KeyMsg) (tea.Cmd, bool) {
 			if !m.prView.IsCommitsTab() {
 				return nil, k == "enter"
 			}
-			oid, repo := m.prView.SelectedCommit()
+			oid, repo, prNumber := m.prView.SelectedCommit()
 			if oid == "" {
 				return nil, true
 			}
-			return common.DiffCommit(repo, oid, m.ctx.Config.Pager.Diff,
-				m.ctx.Config.GetFullScreenDiffPagerEnv()), true
+			return common.DiffCommit(repo, oid, prNumber, m.ctx.Config.Pager.Diff,
+				m.ctx.Config.GetFullScreenDiffPagerEnv(), m.ctx.Config.RepoPaths), true
 		}
 	}
 
