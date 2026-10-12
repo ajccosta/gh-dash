@@ -1948,6 +1948,12 @@ func (m *Model) removeSection() {
 }
 
 func (m *Model) initSections() {
+	if m.ctx.Config.SmartFilteringAtLaunch && !m.ctx.HasGHRepo() {
+		m.ctx.Config.PRSections = withoutRepoSections(m.ctx.Config.PRSections,
+			func(s config.PrsSectionConfig) string { return s.Filters })
+		m.ctx.Config.IssuesSections = withoutRepoSections(m.ctx.Config.IssuesSections,
+			func(s config.IssuesSectionConfig) string { return s.Filters })
+	}
 	m.prs = prssection.InitSections(m.ctx)
 	m.issues = issuessection.InitSections(m.ctx)
 	m.notifications = notificationssection.InitSections(m.ctx)
@@ -1960,4 +1966,29 @@ func (m *Model) isViewSectionsStale() bool {
 		}
 	}
 	return false
+}
+
+// withoutRepoSections drops the sections meant for the current repo (their
+// filters name no repo, owner or person, e.g. "is:open"), which outside a
+// repo would search all of GitHub. It keeps them if nothing else is left.
+func withoutRepoSections[S any](sections []S, filters func(S) string) []S {
+	scoped := []string{
+		"repo:", "org:", "user:", "owner:", "author:", "assignee:", "involves:",
+		"mentions:", "commenter:", "review-requested:", "reviewed-by:",
+		"team-review-requested:", "team:",
+	}
+	var kept []S
+	for _, s := range sections {
+		for tok := range strings.FieldsSeq(filters(s)) {
+			tok = strings.TrimPrefix(tok, "-")
+			if slices.ContainsFunc(scoped, func(p string) bool { return strings.HasPrefix(tok, p) }) {
+				kept = append(kept, s)
+				break
+			}
+		}
+	}
+	if len(kept) == 0 {
+		return sections
+	}
+	return kept
 }
