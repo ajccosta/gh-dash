@@ -7,6 +7,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/cmpcontroller"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/fuzzyselect"
@@ -90,7 +91,18 @@ func (m Model) View(ctx *context.ProgramContext) string {
 	if m.cmpctl.Focused() {
 		s = s.BorderForeground(m.ctx.Styles.Colors.OpenIssue)
 	}
-	return s.Render(m.cmpctl.View())
+	bar := s.Render(m.cmpctl.View())
+	if zone.DefaultManager == nil { // not set up (tests)
+		return bar
+	}
+	return zone.Mark(zoneId, bar)
+}
+
+const zoneId = "search-bar"
+
+// At reports whether the mouse is on the search bar.
+func (m Model) At(msg tea.MouseMsg) bool {
+	return zone.DefaultManager != nil && zone.Get(zoneId).InBounds(msg)
 }
 
 func (m Model) ViewCompletions() string {

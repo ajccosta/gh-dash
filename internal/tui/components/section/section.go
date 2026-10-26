@@ -175,6 +175,7 @@ type Table interface {
 	CurrRow() int
 	NextRow() int
 	RowAt(msg tea.MouseMsg) int
+	SearchAt(msg tea.MouseMsg) bool
 	SelectRow(i int)
 	PrevRow() int
 	FirstItem() int
@@ -335,6 +336,11 @@ func (m *BaseModel) CurrRow() int {
 // RowAt returns the row under the mouse, or -1.
 func (m *BaseModel) RowAt(msg tea.MouseMsg) int {
 	return m.Table.RowAt(msg)
+}
+
+// SearchAt reports whether the mouse is on the search bar.
+func (m *BaseModel) SearchAt(msg tea.MouseMsg) bool {
+	return m.SearchBar.At(msg)
 }
 
 func (m *BaseModel) SelectRow(i int) {

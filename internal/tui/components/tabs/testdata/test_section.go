@@ -125,6 +125,11 @@ func (t *TestSection) RowAt(msg tea.MouseMsg) int {
 	panic("unimplemented")
 }
 
+// SearchAt implements section.Section.
+func (t *TestSection) SearchAt(msg tea.MouseMsg) bool {
+	panic("unimplemented")
+}
+
 // SelectRow implements section.Section.
 func (t *TestSection) SelectRow(i int) {
 	panic("unimplemented")

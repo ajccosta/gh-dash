@@ -14,6 +14,9 @@ import (
 
 // handleMouseClick reports whether the click landed on something it handles.
 func (m *Model) handleMouseClick(msg tea.MouseClickMsg) (bool, tea.Cmd) {
+	if s := m.getCurrSection(); s != nil && s.IsSearchFocused() && !s.SearchAt(msg) {
+		s.SetIsSearching(false) // clicking away leaves the search box, as Esc does
+	}
 	if v, ok := m.tabs.ViewAt(msg); ok {
 		if v == m.ctx.View {
 			return true, nil
@@ -51,6 +54,12 @@ func (m *Model) handleMouseClick(msg tea.MouseClickMsg) (bool, tea.Cmd) {
 			return true, common.DiffCommit(repo, oid, prNumber, m.ctx.Config.Pager.Diff,
 				m.ctx.Config.GetFullScreenDiffPagerEnv(), m.ctx.Config.RepoPaths)
 		}
+	}
+	if s := m.getCurrSection(); s != nil && s.SearchAt(msg) {
+		if s.IsSearchFocused() {
+			return true, nil
+		}
+		return true, s.SetIsSearching(true)
 	}
 	if s := m.getCurrSection(); s != nil {
 		if i := s.RowAt(msg); i >= 0 {
