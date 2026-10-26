@@ -79,6 +79,7 @@ defaults:
         width: 20
         hidden: true
   refetchIntervalMinutes: 10
+  mouse: true
 keybindings:
   universal:
     - key: "n"
