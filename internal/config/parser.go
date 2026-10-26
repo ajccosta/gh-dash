@@ -199,7 +199,7 @@ type Defaults struct {
 	DateFormat             string        `yaml:"dateFormat,omitempty"`
 	// Mouse lets clicks pick views, sections, list rows, preview tabs and
 	// commits, and the wheel scroll the list and the preview.
-	Mouse bool `yaml:"mouse,omitempty"`
+	Mouse bool `yaml:"mouse"`
 }
 
 type RepoConfig struct {
@@ -359,6 +359,7 @@ func (parser ConfigParser) getDefaultConfig() Config {
 				Height:   0.60,
 				Position: "auto",
 			},
+			Mouse:                  true,
 			PrsLimit:               20,
 			PrApproveComment:       "LGTM",
 			IssuesLimit:            20,

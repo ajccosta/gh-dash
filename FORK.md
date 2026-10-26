@@ -101,10 +101,10 @@ Ask Claude can read the local clone. Other pagers ignore these.
 
 ```yaml
 defaults:
-  mouse: true   # unset or false: upstream behaviour (only Approve, Merge and the donate link click)
+  mouse: true   # the default; false: upstream behaviour (only Approve, Merge and the donate link click)
 ```
 
-With `mouse: true` a left click does what the key for it does: a view in the switcher
+By default (`mouse: true`) a left click does what the key for it does: a view in the switcher
 (`Notifications │ PRs │ Issues`) switches to it, a section tab selects it, `+ ctrl+s n` adds a section,
 a list row selects it (and updates the preview), and a preview tab (`Overview … Files Changed`) shows it.
 The wheel moves the list selection, or scrolls the preview when the pointer is over it.
