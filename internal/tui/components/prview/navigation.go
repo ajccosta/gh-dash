@@ -1,5 +1,7 @@
 package prview
 
+import tea "charm.land/bubbletea/v2"
+
 // State for the "arrows" preview navigation (defaults.preview.navigation):
 // the pane can take focus, and while it has it the Commits tab keeps a cursor
 // on one commit so its diff can be opened on its own.
@@ -68,3 +70,9 @@ func (m *Model) SelectedCommit() (oid string, repo string, prNumber int) {
 func (m *Model) commitSelected(i int) bool {
 	return m.focused && i == m.commitCursor
 }
+
+// TabAt returns the preview tab under the mouse, or -1.
+func (m *Model) TabAt(msg tea.MouseMsg) int { return m.carousel.ItemAt(msg) }
+
+// SelectTab shows tab i.
+func (m *Model) SelectTab(i int) { m.carousel.SetCursor(i) }

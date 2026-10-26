@@ -877,6 +877,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			(m.ctx.View == config.PRsView || m.notificationView.GetSubjectPR() != nil) {
 			return m, m.mergeCurrentPR()
 		}
+		if m.ctx.Config.Defaults.Mouse {
+			if handled, cmd := m.handleMouseClick(msg); handled {
+				return m, cmd
+			}
+		}
 		if zone.Get("donate").InBounds(msg) {
 			log.Info("Donate clicked", "msg", msg)
 			openCmd := func() tea.Msg {
@@ -892,6 +897,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return nil
 			}
 			cmds = append(cmds, openCmd)
+		}
+
+	case tea.MouseWheelMsg:
+		if !m.ctx.Config.Defaults.Mouse {
+			break
+		}
+		if wheelCmd, handled := m.handleMouseWheel(msg); handled {
+			return m, wheelCmd
 		}
 
 	case tea.WindowSizeMsg:

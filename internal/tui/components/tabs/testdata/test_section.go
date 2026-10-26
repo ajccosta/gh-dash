@@ -120,6 +120,16 @@ func (t *TestSection) MakeSectionCmd(cmd tea.Cmd) tea.Cmd {
 	panic("unimplemented")
 }
 
+// RowAt implements section.Section.
+func (t *TestSection) RowAt(msg tea.MouseMsg) int {
+	panic("unimplemented")
+}
+
+// SelectRow implements section.Section.
+func (t *TestSection) SelectRow(i int) {
+	panic("unimplemented")
+}
+
 // NextRow implements section.Section.
 func (t *TestSection) NextRow() int {
 	panic("unimplemented")

@@ -51,6 +51,7 @@ var tabs = []string{"Overview", "Activity", "Commits", "Checks", "Files Changed"
 func NewModel(ctx *context.ProgramContext) Model {
 	c := carousel.NewModel(
 		carousel.WithItems(tabs),
+		carousel.WithZonePrefix("preview-tab-"),
 		carousel.WithWidth(ctx.MainContentWidth),
 	)
 

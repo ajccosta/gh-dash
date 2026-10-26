@@ -2,6 +2,7 @@ package table
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/common"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/listviewport"
@@ -369,10 +371,41 @@ func (m *Model) renderRow(rowId int, headerColumns []string) string {
 		headerColId++
 	}
 
-	return m.ctx.Styles.Table.RowStyle.
+	row := m.ctx.Styles.Table.RowStyle.
 		BorderBottom(m.ctx.Config.Theme.Ui.Table.ShowSeparator).
 		MaxWidth(m.dimensions.Width).
 		Render(lipgloss.JoinHorizontal(lipgloss.Top, renderedColumns...))
+	if zone.DefaultManager == nil { // not set up (tests)
+		return row
+	}
+	return zone.Mark(rowZonePrefix+strconv.Itoa(rowId), row)
+}
+
+const rowZonePrefix = "table-row-"
+
+// RowAt returns the row under the mouse position of msg, or -1.
+func (m *Model) RowAt(msg tea.MouseMsg) int {
+	if zone.DefaultManager == nil {
+		return -1
+	}
+	for i := range m.Rows {
+		if zone.Get(rowZonePrefix + strconv.Itoa(i)).InBounds(msg) {
+			return i
+		}
+	}
+	return -1
+}
+
+// SelectItem moves the selection to row i, scrolling like the arrow keys do.
+func (m *Model) SelectItem(i int) {
+	i = min(max(i, 0), len(m.Rows)-1)
+	for m.rowsViewport.GetCurrItem() < i {
+		m.rowsViewport.NextItem()
+	}
+	for m.rowsViewport.GetCurrItem() > i {
+		m.rowsViewport.PrevItem()
+	}
+	m.SyncViewPortContent()
 }
 
 func (m *Model) UpdateProgramContext(ctx *context.ProgramContext) {

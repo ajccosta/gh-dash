@@ -1,12 +1,14 @@
 package carousel
 
 import (
+	"strconv"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/constants"
 )
@@ -31,6 +33,8 @@ type Model struct {
 	start     int
 	end       int
 	highlight bool // reverse the selected item, to show this bar has focus
+
+	zonePrefix string // when set, each item is a clickable zone "<prefix><index>"
 }
 
 // KeyMap defines keybindings. It satisfies to the help.KeyMap interface, which
@@ -386,7 +390,7 @@ func (m *Model) renderItem(itemID int, maxWidth int) string {
 		}
 		return lipgloss.JoinHorizontal(
 			lipgloss.Center,
-			selected.Render(item),
+			m.markItem(itemID, selected.Render(item)),
 			sep,
 		)
 	}
@@ -411,9 +415,35 @@ func (m *Model) renderItem(itemID int, maxWidth int) string {
 
 	return lipgloss.JoinHorizontal(
 		lipgloss.Center,
-		item,
+		m.markItem(itemID, item),
 		sep,
 	)
+}
+
+// WithZonePrefix makes every item a bubblezone "<prefix><index>", so a mouse
+// click can be mapped back to it with ItemAt.
+func WithZonePrefix(prefix string) Option {
+	return func(m *Model) { m.zonePrefix = prefix }
+}
+
+func (m *Model) markItem(itemID int, rendered string) string {
+	if m.zonePrefix == "" || zone.DefaultManager == nil { // off, or not set up (tests)
+		return rendered
+	}
+	return zone.Mark(m.zonePrefix+strconv.Itoa(itemID), rendered)
+}
+
+// ItemAt returns the item under the mouse position of msg, or -1.
+func (m *Model) ItemAt(msg tea.MouseMsg) int {
+	if m.zonePrefix == "" || zone.DefaultManager == nil {
+		return -1
+	}
+	for i := range m.items {
+		if zone.Get(m.zonePrefix + strconv.Itoa(i)).InBounds(msg) {
+			return i
+		}
+	}
+	return -1
 }
 
 func max(a, b int) int {

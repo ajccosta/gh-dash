@@ -174,6 +174,8 @@ type Table interface {
 	GetCurrRow() data.RowData
 	CurrRow() int
 	NextRow() int
+	RowAt(msg tea.MouseMsg) int
+	SelectRow(i int)
 	PrevRow() int
 	FirstItem() int
 	LastItem() int
@@ -328,6 +330,15 @@ func (m *BaseModel) GetType() string {
 
 func (m *BaseModel) CurrRow() int {
 	return m.Table.GetCurrItem()
+}
+
+// RowAt returns the row under the mouse, or -1.
+func (m *BaseModel) RowAt(msg tea.MouseMsg) int {
+	return m.Table.RowAt(msg)
+}
+
+func (m *BaseModel) SelectRow(i int) {
+	m.Table.SelectItem(i)
 }
 
 func (m *BaseModel) NextRow() int {

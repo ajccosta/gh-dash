@@ -2,10 +2,12 @@ package tabs
 
 import (
 	"fmt"
+	"strconv"
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/dlvhdr/gh-dash/v4/internal/config"
 	"github.com/dlvhdr/gh-dash/v4/internal/data"
@@ -40,11 +42,46 @@ var viewTitles = map[config.ViewType]string{
 	config.IssuesView:        "Issues",
 }
 
+const (
+	sectionZonePrefix = "section-tab-"
+	viewZonePrefix    = "view-tab-"
+	newSectionZoneId  = "new-section"
+)
+
+func mark(id string, s string) string {
+	if zone.DefaultManager == nil { // not set up (tests)
+		return s
+	}
+	return zone.Mark(id, s)
+}
+
+// SectionAt returns the index of the section tab under the mouse, or -1.
+func (m *Model) SectionAt(msg tea.MouseMsg) int { return m.carousel.ItemAt(msg) }
+
+// ViewAt returns the view whose switcher item is under the mouse.
+func (m *Model) ViewAt(msg tea.MouseMsg) (config.ViewType, bool) {
+	if zone.DefaultManager == nil {
+		return "", false
+	}
+	for i, v := range Views {
+		if zone.Get(viewZonePrefix + strconv.Itoa(i)).InBounds(msg) {
+			return v, true
+		}
+	}
+	return "", false
+}
+
+// NewSectionAt reports whether the mouse is on the "+ new section" button.
+func (m *Model) NewSectionAt(msg tea.MouseMsg) bool {
+	return zone.DefaultManager != nil && zone.Get(newSectionZoneId).InBounds(msg)
+}
+
 func NewModel(ctx *context.ProgramContext) Model {
 	c := carousel.NewModel(
 		carousel.WithHeight(1),
 		carousel.WithOverflowIndicators("←", "→"),
 		carousel.WithSeparators(),
+		carousel.WithZonePrefix(sectionZonePrefix),
 	)
 	m := Model{
 		carousel: c,
@@ -98,13 +135,13 @@ func (m Model) viewNewSectionButton() string {
 		Padding(0, 1).
 		Border(lipgloss.NormalBorder(), false, true, false, false).
 		BorderForeground(m.ctx.Styles.Tabs.TabSeparator.GetForeground()).
-		Render(
+		Render(mark(newSectionZoneId,
 			lipgloss.JoinHorizontal(lipgloss.Top,
 				lipgloss.NewStyle().
 					Foreground(m.ctx.Styles.Colors.SuccessText).
 					Render("+ "),
 				keys.Keys.NewSection.Help().Key,
-			))
+			)))
 }
 
 // viewViewSwitcher renders "Notifications │ PRs │ Issues  s" with the current
@@ -122,7 +159,8 @@ func (m Model) viewViewSwitcher() string {
 				style = style.Reverse(true)
 			}
 		}
-		items = append(items, style.Padding(0, 1).Render(viewTitles[v]))
+		items = append(items, mark(viewZonePrefix+strconv.Itoa(i),
+			style.Padding(0, 1).Render(viewTitles[v])))
 	}
 	items = append(items, m.ctx.Styles.Common.FaintTextStyle.PaddingLeft(1).
 		Render(keys.SwitchViewKey(m.ctx.View)))

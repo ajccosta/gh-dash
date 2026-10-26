@@ -197,6 +197,9 @@ type Defaults struct {
 	Layout                 LayoutConfig  `yaml:"layout,omitempty"`
 	RefetchIntervalMinutes int           `yaml:"refetchIntervalMinutes,omitempty"`
 	DateFormat             string        `yaml:"dateFormat,omitempty"`
+	// Mouse lets clicks pick views, sections, list rows, preview tabs and
+	// commits, and the wheel scroll the list and the preview.
+	Mouse bool `yaml:"mouse,omitempty"`
 }
 
 type RepoConfig struct {

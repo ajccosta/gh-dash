@@ -96,3 +96,17 @@ Set `pager.diff` to [ghdiff](https://github.com/ajccosta/ghdiff) for a GitHub-st
 commit diffs. gh-dash passes the diff's name in `GHDIFF_TITLE`, and the PR in `GHDIFF_REPO`,
 `GHDIFF_PR`, `GHDIFF_COMMIT` (commit diffs) and `GHDIFF_REPO_PATH` (from `repoPaths`), so ghdiff's
 Ask Claude can read the local clone. Other pagers ignore these.
+
+## Mouse
+
+```yaml
+defaults:
+  mouse: true   # unset or false: upstream behaviour (only Approve, Merge and the donate link click)
+```
+
+With `mouse: true` a left click does what the key for it does: a view in the switcher
+(`Notifications │ PRs │ Issues`) switches to it, a section tab selects it, `+ ctrl+s n` adds a section,
+a list row selects it (and updates the preview), and a preview tab (`Overview … Files Changed`) shows it.
+The wheel moves the list selection, or scrolls the preview when the pointer is over it.
+Each clickable thing is a bubblezone mark made where it is drawn (`carousel.WithZonePrefix`,
+`table` rows), and `internal/tui/mouse.go` maps a click back to it, so a new clickable only needs a mark and a line there.
