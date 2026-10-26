@@ -106,7 +106,8 @@ defaults:
 
 By default (`mouse: true`) a left click does what the key for it does: a view in the switcher
 (`Notifications │ PRs │ Issues`) switches to it, a section tab selects it, `+ ctrl+s n` adds a section,
-a list row selects it (and updates the preview), and a preview tab (`Overview … Files Changed`) shows it.
+a list row selects it (and updates the preview), a preview tab (`Overview … Files Changed`) shows it,
+and a commit on the Commits tab opens its diff (as `Enter` does).
 The wheel moves the list selection, or scrolls the preview when the pointer is over it.
 Each clickable thing is a bubblezone mark made where it is drawn (`carousel.WithZonePrefix`,
 `table` rows), and `internal/tui/mouse.go` maps a click back to it, so a new clickable only needs a mark and a line there.

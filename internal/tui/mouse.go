@@ -41,6 +41,17 @@ func (m *Model) handleMouseClick(msg tea.MouseClickMsg) (bool, tea.Cmd) {
 			return true, nil
 		}
 	}
+	if m.ctx.View == config.PRsView && m.sidebar.IsOpen {
+		if i := m.prView.CommitAt(msg); i >= 0 {
+			m.prView.SelectCommit(i)
+			oid, repo, prNumber := m.prView.SelectedCommit()
+			if oid == "" {
+				return true, nil
+			}
+			return true, common.DiffCommit(repo, oid, prNumber, m.ctx.Config.Pager.Diff,
+				m.ctx.Config.GetFullScreenDiffPagerEnv(), m.ctx.Config.RepoPaths)
+		}
+	}
 	if s := m.getCurrSection(); s != nil {
 		if i := s.RowAt(msg); i >= 0 {
 			if i == s.CurrRow() {

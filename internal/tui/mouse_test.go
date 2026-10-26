@@ -61,3 +61,11 @@ func TestMouse_ClicksIgnoredUnlessEnabled(t *testing.T) {
 	m.Update(tea.MouseClickMsg{X: z.StartX + 1, Y: z.StartY, Button: tea.MouseLeft})
 	require.Equal(t, config.NotificationsView, m.ctx.View)
 }
+
+func TestMouse_CommitsAreClickable(t *testing.T) {
+	m := newApproveTestModel(t, "other")
+	m.ctx.View = config.PRsView
+	m.prView.SelectTab(2)
+	// Without enriched data there are no commits, so nothing is clickable.
+	require.Equal(t, -1, m.prView.CommitAt(tea.MouseClickMsg{X: 1, Y: 1, Button: tea.MouseLeft}))
+}

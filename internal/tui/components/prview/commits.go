@@ -78,7 +78,7 @@ func (m *Model) renderCommits() string {
 			faint.Render(" ago"),
 			statsStr,
 		)
-		rendered[i] = lipgloss.JoinVertical(lipgloss.Left, title, desc)
+		rendered[i] = markCommit(i, lipgloss.JoinVertical(lipgloss.Left, title, desc))
 	}
 
 	res := heading

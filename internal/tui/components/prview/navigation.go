@@ -1,6 +1,11 @@
 package prview
 
-import tea "charm.land/bubbletea/v2"
+import (
+	"strconv"
+
+	tea "charm.land/bubbletea/v2"
+	zone "github.com/lrstanley/bubblezone/v2"
+)
 
 // State for the "arrows" preview navigation (defaults.preview.navigation):
 // the pane can take focus, and while it has it the Commits tab keeps a cursor
@@ -76,3 +81,28 @@ func (m *Model) TabAt(msg tea.MouseMsg) int { return m.carousel.ItemAt(msg) }
 
 // SelectTab shows tab i.
 func (m *Model) SelectTab(i int) { m.carousel.SetCursor(i) }
+
+const commitZonePrefix = "pr-commit-"
+
+func markCommit(i int, rendered string) string {
+	if zone.DefaultManager == nil { // not set up (tests)
+		return rendered
+	}
+	return zone.Mark(commitZonePrefix+strconv.Itoa(i), rendered)
+}
+
+// CommitAt returns the commit under the mouse on the Commits tab, or -1.
+func (m *Model) CommitAt(msg tea.MouseMsg) int {
+	if zone.DefaultManager == nil || !m.IsCommitsTab() {
+		return -1
+	}
+	for i := range m.numCommits() {
+		if zone.Get(commitZonePrefix + strconv.Itoa(i)).InBounds(msg) {
+			return i
+		}
+	}
+	return -1
+}
+
+// SelectCommit puts the commit cursor on commit i.
+func (m *Model) SelectCommit(i int) { m.MoveCommitCursor(i - m.commitCursor) }
