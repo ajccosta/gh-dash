@@ -119,6 +119,8 @@ Clicking a PR column header sorts by it (▼/▲ marks the order; clicking again
 sorted by GitHub (`sort:updated-desc` etc. replace any `sort:` in the search), so the order holds across pages; the
 other columns order the PRs loaded so far. Each section's sort is remembered across restarts
 (`$XDG_STATE_HOME/gh-dash/sorts.json`, by section title). Each sortable column is one entry in `prSorts` (`prssection/sort.go`).
+Dragging the line between the list and the preview resizes them (it highlights under the mouse); the size is kept in
+`$XDG_STATE_HOME/gh-dash/layout.json` and takes over from `defaults.preview.width`/`height` (`internal/tui/resize.go`).
 The headers are spelled out (Comments, Review, Checks, Updated); `theme.ui.table.shortHeaders: true` brings back
 `✎ Rv CI Upd`.
 Each clickable thing is a bubblezone mark made where it is drawn (`carousel.WithZonePrefix`,

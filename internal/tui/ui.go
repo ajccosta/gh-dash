@@ -57,6 +57,8 @@ type Model struct {
 	pane              pane     // focused pane, "arrows" preview navigation only
 	paneBelowSections pane     // where ↓ from the sections bar goes back to
 	mouse             mousePos // for hover feedback (hover.go)
+	layout            layout   // the preview's dragged size (resize.go)
+	dragging          bool     // the list/preview divider is being dragged
 	issueSidebar      issueview.Model
 	branchSidebar     branchsidebar.Model
 	notificationView  notificationview.Model
@@ -94,6 +96,7 @@ func NewModel(location config.Location, repos Repositories) Model {
 		taskSpinner: taskSpinner,
 		tasks:       map[string]context.Task{},
 	}
+	data.LoadState(layoutFile, &m.layout)
 
 	version := "dev"
 	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Sum != "" {
@@ -870,6 +873,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Button != tea.MouseLeft {
 			return m, nil
 		}
+		if handled, cmd := m.handleDividerMouse(msg); handled {
+			return m, cmd
+		}
 		if zone.Get(prview.ApproveZoneId).InBounds(msg) && m.sidebar.IsOpen &&
 			(m.ctx.View == config.PRsView || m.notificationView.GetSubjectPR() != nil) {
 			return m, m.approveCurrentPR()
@@ -900,7 +906,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, openCmd)
 		}
 
+	case tea.MouseReleaseMsg:
+		if _, cmd := m.handleDividerMouse(msg); cmd != nil {
+			return m, cmd
+		}
+
 	case tea.MouseMotionMsg:
+		if handled, cmd := m.handleDividerMouse(msg); handled {
+			return m, cmd
+		}
 		if m.ctx.Config != nil && m.ctx.Config.Defaults.Mouse {
 			m.mouse = mousePos{x: msg.X, y: msg.Y, on: true}
 		}
@@ -1224,6 +1238,7 @@ func (m *Model) resolvePreviewPosition() string {
 	}
 
 	// auto: check if right mode would leave enough room for the main content
+	// (at the configured width: a dragged one may leave less, on purpose)
 	w := m.ctx.Config.Defaults.Preview.Width
 	if w > 0 && w < 1 {
 		w *= float64(m.ctx.ScreenWidth)
@@ -1266,7 +1281,7 @@ func (m *Model) syncMainContentDimensions() {
 		// Subtract border height: lipgloss Height() sets content height,
 		// and BorderTop adds an extra row outside of that.
 		availableHeight := m.getBaseContentHeight() - m.ctx.Styles.Sidebar.BorderWidth
-		h := m.ctx.Config.Defaults.Preview.Height
+		h := m.previewHeight()
 		if h > 0 && h < 1 {
 			h *= float64(availableHeight)
 		}
@@ -1276,7 +1291,7 @@ func (m *Model) syncMainContentDimensions() {
 	} else {
 		m.ctx.MainContentHeight = m.getBaseContentHeight()
 
-		w := m.ctx.Config.Defaults.Preview.Width
+		w := m.previewWidth()
 		if w > 0 && w < 1 {
 			w *= float64(m.ctx.ScreenWidth)
 		}
