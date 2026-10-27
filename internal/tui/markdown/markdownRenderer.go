@@ -41,7 +41,20 @@ func InitializeMarkdownStyle(ctx *context.ProgramContext) {
 	)
 }
 
-func GetMarkdownRenderer(width int, ctx *context.ProgramContext) glamour.TermRenderer {
+// Renderer renders markdown with glamour, then indents the wrapped lines of
+// list items under their text, as GitHub does (glamour starts them under
+// the bullet).
+type Renderer struct {
+	glamour.TermRenderer
+	width int
+}
+
+func (r Renderer) Render(in string) (string, error) {
+	out, err := r.TermRenderer.Render(in)
+	return hangListItems(out, r.width), err
+}
+
+func GetMarkdownRenderer(width int, ctx *context.ProgramContext) Renderer {
 	if markdownStyle == nil {
 		InitializeMarkdownStyle(ctx)
 	}
@@ -49,12 +62,13 @@ func GetMarkdownRenderer(width int, ctx *context.ProgramContext) glamour.TermRen
 	markdownRenderer, err := glamour.NewTermRenderer(
 		glamour.WithStyles(*markdownStyle),
 		glamour.WithWordWrap(width),
+		glamour.WithInlineTableLinks(true),
 	)
 	if err != nil || markdownRenderer == nil {
 		// Return a fallback renderer that just returns input unchanged
 		fallback, _ := glamour.NewTermRenderer()
 		if fallback != nil {
-			return *fallback
+			return Renderer{*fallback, width}
 		}
 		// If even fallback fails, panic with helpful message
 		msg := "unknown error"
@@ -64,5 +78,5 @@ func GetMarkdownRenderer(width int, ctx *context.ProgramContext) glamour.TermRen
 		panic("failed to create markdown renderer: " + msg)
 	}
 
-	return *markdownRenderer
+	return Renderer{*markdownRenderer, width}
 }

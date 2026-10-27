@@ -3,7 +3,6 @@ package issueview
 import (
 	"fmt"
 	"image/color"
-	"regexp"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
@@ -23,11 +22,6 @@ import (
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/keys"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/markdown"
 	"github.com/dlvhdr/gh-dash/v4/internal/utils"
-)
-
-var (
-	htmlCommentRegex = regexp.MustCompile("(?U)<!--(.|[[:space:]])*-->")
-	lineCleanupRegex = regexp.MustCompile(`((\n)+|^)([^\r\n]*\|[^\r\n]*(\n)?)+`)
 )
 
 type Model struct {
@@ -214,9 +208,7 @@ func (m *Model) renderAuthor() string {
 
 func (m *Model) renderBody() string {
 	width := m.getIndentedContentWidth()
-	// Strip HTML comments from body and cleanup body.
-	body := htmlCommentRegex.ReplaceAllString(m.issue.Data.Body, "")
-	body = lineCleanupRegex.ReplaceAllString(body, "")
+	body := markdown.Prepare(m.issue.Data.Body, m.issue.Data.GetRepoNameWithOwner())
 
 	body = strings.TrimSpace(body)
 	if body == "" {

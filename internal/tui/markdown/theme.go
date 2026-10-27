@@ -34,47 +34,43 @@ var CustomDarkStyleConfig = ansi.StyleConfig{
 	},
 	Heading: ansi.StyleBlock{
 		StylePrimitive: ansi.StylePrimitive{
-			BlockSuffix: "",
+			BlockSuffix: "\n",
 			Color:       stringPtr("#666CA6"),
 			Bold:        boolPtr(true),
 		},
 	},
 	H1: ansi.StyleBlock{
 		StylePrimitive: ansi.StylePrimitive{
-			Prefix: "# ",
-			Color:  stringPtr("255"),
-			Bold:   boolPtr(true),
+			Color: stringPtr("255"),
+			Bold:  boolPtr(true),
 		},
 	},
 	H2: ansi.StyleBlock{
 		StylePrimitive: ansi.StylePrimitive{
-			Color:  stringPtr("252"),
-			Prefix: "## ",
+			Bold:  boolPtr(true),
+			Color: stringPtr("252"),
 		},
 	},
 	H3: ansi.StyleBlock{
 		StylePrimitive: ansi.StylePrimitive{
-			Color:  stringPtr("251"),
-			Prefix: "### ",
+			Bold:  boolPtr(true),
+			Color: stringPtr("251"),
 		},
 	},
 	H4: ansi.StyleBlock{
 		StylePrimitive: ansi.StylePrimitive{
-			Color:  stringPtr("250"),
-			Prefix: "#### ",
+			Color: stringPtr("250"),
 		},
 	},
 	H5: ansi.StyleBlock{
 		StylePrimitive: ansi.StylePrimitive{
-			Color:  stringPtr("249"),
-			Prefix: "##### ",
+			Color: stringPtr("249"),
 		},
 	},
 	H6: ansi.StyleBlock{
 		StylePrimitive: ansi.StylePrimitive{
-			Prefix: "###### ",
-			Color:  stringPtr("248"),
-			Bold:   boolPtr(false),
+			Color: stringPtr("248"),
+			Bold:  boolPtr(false),
 		},
 	},
 	Strikethrough: ansi.StylePrimitive{
@@ -125,11 +121,12 @@ var CustomDarkStyleConfig = ansi.StyleConfig{
 	},
 	Code: ansi.StyleBlock{
 		StylePrimitive: ansi.StylePrimitive{
-			Color:       stringPtr("#E2E1ED"),
-			Prefix:      "`",
-			Suffix:      "`",
-			BlockPrefix: "",
-			BlockSuffix: "",
+			Color:           stringPtr("#E2E1ED"),
+			BackgroundColor: stringPtr("237"),
+			Prefix:          " ",
+			Suffix:          " ",
+			BlockPrefix:     "",
+			BlockSuffix:     "",
 		},
 	},
 	CodeBlock: ansi.StyleCodeBlock{
@@ -224,15 +221,9 @@ var CustomDarkStyleConfig = ansi.StyleConfig{
 		},
 	},
 	Table: ansi.StyleTable{
-		StyleBlock: ansi.StyleBlock{
-			StylePrimitive: ansi.StylePrimitive{
-				Format:  " ",
-				Conceal: boolPtr(true),
-			},
-		},
-		CenterSeparator: stringPtr(""),
-		ColumnSeparator: stringPtr(""),
-		RowSeparator:    stringPtr(""),
+		CenterSeparator: stringPtr("┼"),
+		ColumnSeparator: stringPtr("│"),
+		RowSeparator:    stringPtr("─"),
 	},
 	DefinitionDescription: ansi.StylePrimitive{
 		BlockPrefix: " ",

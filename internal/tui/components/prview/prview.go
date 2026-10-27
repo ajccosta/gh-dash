@@ -3,7 +3,6 @@ package prview
 import (
 	"fmt"
 	"image/color"
-	"regexp"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
@@ -26,11 +25,7 @@ import (
 	"github.com/dlvhdr/gh-dash/v4/internal/utils"
 )
 
-var (
-	htmlCommentRegex = regexp.MustCompile("(?U)<!--(.|[[:space:]])*-->")
-	lineCleanupRegex = regexp.MustCompile(`((\n)+|^)([^\r\n]*\|[^\r\n]*(\n)?)+`)
-	foldBodyHeight   = 8
-)
+var foldBodyHeight = 8
 
 type Model struct {
 	ctx             *context.ProgramContext
@@ -237,7 +232,7 @@ func (m *Model) renderFullNameAndNumber() string {
 		m.width,
 		fmt.Sprintf(
 			"%s · #%d",
-			m.pr.Data.Primary.GetRepoNameWithOwner(),
+			m.repo(),
 			m.pr.Data.Primary.GetNumber(),
 		),
 	)
@@ -516,9 +511,7 @@ func (m *Model) renderAuthor() string {
 
 func (m *Model) renderSummary() string {
 	width := m.getIndentedContentWidth()
-	// Strip HTML comments from body and cleanup body.
-	body := htmlCommentRegex.ReplaceAllString(m.pr.Data.Enriched.Body, "")
-	body = lineCleanupRegex.ReplaceAllString(body, "")
+	body := markdown.Prepare(m.pr.Data.Enriched.Body, m.repo())
 
 	desc := m.ctx.Styles.Common.MainTextStyle.Bold(true).Underline(true).Render("Summary")
 	title := lipgloss.JoinVertical(
@@ -841,7 +834,7 @@ func (m *Model) SetIsLabeling(isLabeling bool) tea.Cmd {
 func (m *Model) repoRef() cmpcontroller.RepoRef {
 	owner, repo := m.pr.Data.Primary.GetRepoNameAndOwner()
 	return cmpcontroller.RepoRef{
-		NameWithOwner: m.pr.Data.Primary.GetRepoNameWithOwner(),
+		NameWithOwner: m.repo(),
 		Owner:         owner,
 		Name:          repo,
 	}
@@ -849,4 +842,12 @@ func (m *Model) repoRef() cmpcontroller.RepoRef {
 
 func (m *Model) hasData() bool {
 	return m.pr != nil && m.pr.Data != nil
+}
+
+// repo is the PR's owner/name, for links relative to it.
+func (m *Model) repo() string {
+	if m.pr == nil || m.pr.Data == nil || m.pr.Data.Primary == nil {
+		return ""
+	}
+	return m.pr.Data.Primary.GetRepoNameWithOwner()
 }

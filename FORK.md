@@ -97,6 +97,16 @@ commit diffs. gh-dash passes the diff's name in `GHDIFF_TITLE`, and the PR in `G
 `GHDIFF_PR`, `GHDIFF_COMMIT` (commit diffs) and `GHDIFF_REPO_PATH` (from `repoPaths`), so ghdiff's
 Ask Claude can read the local clone. Other pagers ignore these.
 
+## Markdown
+
+PR and issue descriptions and comments go through `markdown.Prepare` (`internal/tui/markdown/prepare.go`) before
+glamour renders them, so they read as on GitHub: tables and lines with `|` are kept (upstream dropped them), headings
+have no `#`, `#123`, `@user` and bare URLs are named links (`owner/repo#12` for an issue URL), links relative to the
+repo point at it, images and `<img>` are `▣ alt ↗` links, and `<br>`, `<details>`/`<summary>`, `<a>`, `<kbd>` and
+`> [!NOTE]` alerts are turned into markdown. Every link shows its text followed by `↗`, and is a terminal hyperlink.
+Inline code has a background instead of backticks, and wrapped list items indent under their text (`markdown/hang.go`;
+glamour starts them under the bullet).
+
 ## Mouse
 
 ```yaml

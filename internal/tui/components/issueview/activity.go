@@ -4,7 +4,6 @@ import (
 	"sort"
 	"time"
 
-	"charm.land/glamour/v2"
 	"charm.land/lipgloss/v2"
 
 	"github.com/dlvhdr/gh-dash/v4/internal/data"
@@ -65,7 +64,7 @@ func renderEmptyState() string {
 
 func (m *Model) renderComment(
 	comment data.IssueComment,
-	markdownRenderer glamour.TermRenderer,
+	markdownRenderer markdown.Renderer,
 ) (string, error) {
 	width := m.getIndentedContentWidth() - 2
 	header := lipgloss.NewStyle().
@@ -81,7 +80,7 @@ func (m *Model) renderComment(
 				Render(utils.TimeElapsed(comment.UpdatedAt)),
 		))
 
-	body := lineCleanupRegex.ReplaceAllString(comment.Body, "")
+	body := markdown.Prepare(comment.Body, m.issue.Data.GetRepoNameWithOwner())
 	body, err := markdownRenderer.Render(body)
 
 	return lipgloss.JoinVertical(
