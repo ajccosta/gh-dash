@@ -117,7 +117,8 @@ Whatever is clickable gets a faint background while the mouse is over it (`theme
 `internal/tui/hover.go` tints the smallest zone under the pointer, so every new mark gets it too).
 Clicking a PR column header sorts by it (▼/▲ marks the order; clicking again reverses it). Updated and Age are
 sorted by GitHub (`sort:updated-desc` etc. replace any `sort:` in the search), so the order holds across pages; the
-other columns order the PRs loaded so far. Each sortable column is one entry in `prSorts` (`prssection/sort.go`).
+other columns order the PRs loaded so far. Each section's sort is remembered across restarts
+(`$XDG_STATE_HOME/gh-dash/sorts.json`, by section title). Each sortable column is one entry in `prSorts` (`prssection/sort.go`).
 The headers are spelled out (Comments, Review, Checks, Updated); `theme.ui.table.shortHeaders: true` brings back
 `✎ Rv CI Upd`.
 Each clickable thing is a bubblezone mark made where it is drawn (`carousel.WithZonePrefix`,

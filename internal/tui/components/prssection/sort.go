@@ -131,6 +131,7 @@ func (m *Model) SortBy(key string) tea.Cmd {
 	}
 	before := m.GetFilters()
 	m.sort, m.sortDesc = key, desc
+	data.SetSectionSort(m.sortId(), data.SectionSort{Key: key, Desc: desc})
 	m.syncSortArrow()
 	if m.GetFilters() != before {
 		m.ResetRows()
@@ -138,6 +139,18 @@ func (m *Model) SortBy(key string) tea.Cmd {
 	}
 	m.sortPrs()
 	return nil
+}
+
+// sortId names the section in the saved sorts.
+func (m *Model) sortId() string { return "prs:" + m.cfg.Title }
+
+// loadSort picks up the sort the section had last time.
+func (m *Model) loadSort() {
+	if s, ok := data.GetSectionSort(m.sortId()); ok {
+		if _, known := prSorts[s.Key]; known {
+			m.sort, m.sortDesc = s.Key, s.Desc
+		}
+	}
 }
 
 // sortPrs orders the loaded PRs by the chosen column, if GitHub can't, and

@@ -54,6 +54,7 @@ func NewModel(
 			CreatedAt:   createdAt,
 		},
 	)
+	m.loadSort()
 
 	return m
 }
