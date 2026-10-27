@@ -59,6 +59,8 @@ type Model struct {
 	mouse             mousePos // for hover feedback (hover.go)
 	layout            layout   // the preview's dragged size (resize.go)
 	dragging          bool     // the list/preview divider is being dragged
+	wheel             wheelState
+	lastView          *tea.View // shown again while wheel steps are being counted
 	issueSidebar      issueview.Model
 	branchSidebar     branchsidebar.Model
 	notificationView  notificationview.Model
@@ -928,6 +930,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, wheelCmd
 		}
 
+	case wheelFlushMsg:
+		return m, m.applyWheel()
+
 	case tea.WindowSizeMsg:
 		m.onWindowSizeChanged(msg)
 
@@ -996,6 +1001,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) View() tea.View {
+	if m.wheel.pending && m.lastView != nil {
+		return *m.lastView // nothing has moved yet: applyWheel moves it all at once
+	}
+	v := m.view()
+	m.lastView = &v
+	return v
+}
+
+func (m *Model) view() tea.View {
 	var v tea.View
 	v.AltScreen = true
 	v.ReportFocus = true

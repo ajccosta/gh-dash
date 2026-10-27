@@ -2,6 +2,7 @@ package tui
 
 import (
 	"reflect"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -81,8 +82,23 @@ func (m *Model) handleMouseClick(msg tea.MouseClickMsg) (bool, tea.Cmd) {
 	return false, nil
 }
 
-// handleMouseWheel scrolls the preview when the pointer is over it, and moves
-// the list selection otherwise.
+// Wheel events come in bursts (a trackpad flick sends dozens), and moving
+// the selection re-renders the preview and fetches the PR's details. So a
+// burst is added up and applied once per frame: handleMouseWheel counts,
+// applyWheel moves, and View shows the last frame until then.
+
+const wheelFrame = time.Second / 60
+
+// wheelState is the scrolling counted since the last frame.
+type wheelState struct {
+	list, preview int // rows to move the selection, lines to scroll the preview
+	pending       bool
+}
+
+type wheelFlushMsg struct{}
+
+// handleMouseWheel counts a wheel step: over the preview it scrolls it,
+// elsewhere it moves the list selection.
 func (m *Model) handleMouseWheel(msg tea.MouseWheelMsg) (tea.Cmd, bool) {
 	var delta int
 	switch msg.Button {
@@ -94,27 +110,40 @@ func (m *Model) handleMouseWheel(msg tea.MouseWheelMsg) (tea.Cmd, bool) {
 		return nil, false
 	}
 	if m.sidebar.IsOpen && m.overSidebar(msg.Mouse()) {
-		m.sidebar.ScrollLines(3 * delta)
-		return nil, true
-	}
-	s := m.getCurrSection()
-	if s == nil {
+		m.wheel.preview += 3 * delta
+	} else if m.getCurrSection() != nil {
+		m.wheel.list += delta
+	} else {
 		return nil, false
 	}
-	before := s.CurrRow()
-	if delta > 0 {
-		s.NextRow()
-	} else {
-		s.PrevRow()
-	}
-	if s.CurrRow() == before {
+	if m.wheel.pending {
 		return nil, true
 	}
+	m.wheel.pending = true
+	return tea.Tick(wheelFrame, func(time.Time) tea.Msg { return wheelFlushMsg{} }), true
+}
+
+// applyWheel does the scrolling counted since the last frame.
+func (m *Model) applyWheel() tea.Cmd {
+	w := m.wheel
+	m.wheel = wheelState{}
+	if w.preview != 0 {
+		m.sidebar.ScrollLines(w.preview)
+	}
+	s := m.getCurrSection()
+	if w.list == 0 || s == nil || s.NumRows() == 0 {
+		return nil
+	}
+	before := s.CurrRow()
+	s.SelectRow(min(max(before+w.list, 0), s.NumRows()-1))
+	if s.CurrRow() == before {
+		return nil
+	}
 	cmds := []tea.Cmd{m.onViewedRowChanged()}
-	if delta > 0 && s.CurrRow() == s.NumRows()-1 && m.ctx.View != config.RepoView {
+	if w.list > 0 && s.CurrRow() == s.NumRows()-1 && m.ctx.View != config.RepoView {
 		cmds = append(cmds, s.FetchNextPageSectionRows()...)
 	}
-	return tea.Batch(cmds...), true
+	return tea.Batch(cmds...)
 }
 
 func (m *Model) overSidebar(p tea.Mouse) bool {
