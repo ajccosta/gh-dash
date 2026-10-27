@@ -61,6 +61,7 @@ type Model struct {
 	dragging          bool     // the list/preview divider is being dragged
 	wheel             wheelState
 	lastView          *tea.View // shown again while wheel steps are being counted
+	links             []string  // the URLs of the view's links, by zone (links.go)
 	issueSidebar      issueview.Model
 	branchSidebar     branchsidebar.Model
 	notificationView  notificationview.Model
@@ -1079,8 +1080,9 @@ func (m *Model) view() tea.View {
 		s.WriteString(m.footer.View())
 	}
 
+	view, restoreLinks := m.markLinks(s.String())
 	layers := []*lipgloss.Layer{
-		lipgloss.NewLayer(m.paintHover(zone.Scan(s.String()))),
+		lipgloss.NewLayer(m.paintHover(restoreLinks(zone.Scan(view)))),
 	}
 
 	if currSection != nil {

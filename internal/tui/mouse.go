@@ -18,6 +18,9 @@ import (
 
 // handleMouseClick reports whether the click landed on something it handles.
 func (m *Model) handleMouseClick(msg tea.MouseClickMsg) (bool, tea.Cmd) {
+	if url := m.linkAt(msg); url != "" && msg.Button == tea.MouseLeft {
+		return true, openURL(url)
+	}
 	if s := m.getCurrSection(); s != nil && s.IsSearchFocused() && !s.SearchAt(msg) {
 		s.SetIsSearching(false) // clicking away leaves the search box, as Esc does
 	}
