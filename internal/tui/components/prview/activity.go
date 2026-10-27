@@ -31,16 +31,16 @@ func (m *Model) renderActivity() string {
 		return bodyStyle.Render("Loading...")
 	}
 
-	for _, review := range m.pr.Data.Enriched.ReviewThreads.Nodes {
-		path := review.Path
-		line := review.Line
-		for _, c := range review.Comments.Nodes {
+	locs := m.reviewLocs()
+	for ti, review := range m.pr.Data.Enriched.ReviewThreads.Nodes {
+		for ci, c := range review.Comments.Nodes {
 			comments = append(comments, comment{
 				Author:    c.Author.Login,
 				Body:      c.Body,
 				UpdatedAt: c.UpdatedAt,
-				Path:      &path,
-				Line:      &line,
+				Loc:       &locs[ti],
+				thread:    ti,
+				index:     ci,
 			})
 		}
 	}
@@ -104,8 +104,9 @@ type comment struct {
 	Author    string
 	UpdatedAt time.Time
 	Body      string
-	Path      *string
-	Line      *int
+	Loc       *CodeLoc // for review comments: the code they are about
+	thread    int      // which review thread, and which comment in it
+	index     int
 }
 
 func (m *Model) renderComment(
@@ -127,15 +128,9 @@ func (m *Model) renderComment(
 		))
 
 	var header string
-	if comment.Path != nil && comment.Line != nil {
-		filePath := lipgloss.NewStyle().Foreground(m.ctx.Theme.FaintText).Width(width).Render(
-			fmt.Sprintf(
-				"%s#l%d",
-				*comment.Path,
-				*comment.Line,
-			),
-		)
-		header = lipgloss.JoinVertical(lipgloss.Left, authorAndTime, filePath, "")
+	if comment.Loc != nil {
+		header = lipgloss.JoinVertical(lipgloss.Left, authorAndTime,
+			m.renderCodeLoc(*comment.Loc, comment.thread, comment.index, width), "")
 	} else {
 		header = authorAndTime
 	}

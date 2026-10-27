@@ -264,6 +264,7 @@ type ReviewComment struct {
 	UpdatedAt time.Time
 	StartLine int
 	Line      int
+	DiffHunk  string // the diff up to the commented line, for showing that code
 }
 
 type ReviewComments struct {
@@ -299,13 +300,16 @@ type Reviews struct {
 
 type ReviewThreadsWithComments struct {
 	Nodes []struct {
-		Id           string
-		IsOutdated   bool
-		OriginalLine int
-		StartLine    int
-		Line         int
-		Path         string
-		Comments     ReviewComments `graphql:"comments(first: 20)"`
+		Id                string
+		IsOutdated        bool
+		OriginalLine      int
+		OriginalStartLine int
+		StartLine         int
+		Line              int
+		DiffSide          string
+		StartDiffSide     string
+		Path              string
+		Comments          ReviewComments `graphql:"comments(first: 20)"`
 	}
 }
 

@@ -1,9 +1,12 @@
 package tui
 
 import (
+	"reflect"
+
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/dlvhdr/gh-dash/v4/internal/config"
+	"github.com/dlvhdr/gh-dash/v4/internal/data"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/common"
 )
 
@@ -37,14 +40,16 @@ func (m *Model) handleMouseClick(msg tea.MouseClickMsg) (bool, tea.Cmd) {
 		}
 		return true, nil
 	}
-	if m.ctx.View == config.PRsView && m.sidebar.IsOpen {
+	if pr := m.previewPR(); pr != nil {
 		if i := m.prView.TabAt(msg); i >= 0 {
 			m.prView.SelectTab(i)
 			m.syncSidebar()
 			return true, nil
 		}
-	}
-	if m.ctx.View == config.PRsView && m.sidebar.IsOpen {
+		if loc, ok := m.prView.CodeLocAt(msg); ok {
+			return true, common.DiffPR(pr.GetNumber(), pr.GetRepoNameWithOwner(),
+				m.ctx.Config.GetFullScreenDiffPagerEnv(), m.ctx.Config.RepoPaths, loc.GotoEnv())
+		}
 		if i := m.prView.CommitAt(msg); i >= 0 {
 			m.prView.SelectCommit(i)
 			oid, repo, prNumber := m.prView.SelectedCommit()
@@ -114,4 +119,24 @@ func (m *Model) overSidebar(p tea.Mouse) bool {
 		return p.Y >= common.HeaderHeight+m.ctx.MainContentHeight
 	}
 	return p.X >= m.ctx.MainContentWidth
+}
+
+// previewPR is the PR the preview shows (in the PRs view, or as a
+// notification's subject), or nil.
+func (m *Model) previewPR() data.RowData {
+	if !m.sidebar.IsOpen {
+		return nil
+	}
+	if m.ctx.View == config.NotificationsView {
+		if p := m.notificationView.GetSubjectPR(); p != nil {
+			return p
+		}
+		return nil
+	}
+	if m.ctx.View == config.PRsView {
+		if pr := m.getCurrRowData(); pr != nil && !reflect.ValueOf(pr).IsNil() {
+			return pr
+		}
+	}
+	return nil
 }

@@ -26,8 +26,11 @@ func ghdiffEnv(env []string, repoName string, prNumber int, repoPaths map[string
 }
 
 // DiffPR opens a diff view for a PR using the gh CLI.
-// The env parameter should be the result of Config.GetFullScreenDiffPagerEnv().
-func DiffPR(prNumber int, repoName string, env []string, repoPaths map[string]string) tea.Cmd {
+// The env parameter should be the result of Config.GetFullScreenDiffPagerEnv();
+// extraEnv is added to it (such as GHDIFF_GOTO, to open at some lines).
+func DiffPR(prNumber int, repoName string, env []string, repoPaths map[string]string,
+	extraEnv ...string,
+) tea.Cmd {
 	c := exec.Command(
 		"gh",
 		"pr",
@@ -39,6 +42,7 @@ func DiffPR(prNumber int, repoName string, env []string, repoPaths map[string]st
 	// GHDIFF_TITLE names the diff in ghdiff's title bar; other pagers ignore it.
 	c.Env = append(ghdiffEnv(env, repoName, prNumber, repoPaths),
 		fmt.Sprintf("GHDIFF_TITLE=%s#%d", repoName, prNumber))
+	c.Env = append(c.Env, extraEnv...)
 
 	return tea.ExecProcess(c, func(err error) tea.Msg {
 		if err != nil {

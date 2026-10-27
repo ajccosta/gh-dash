@@ -109,6 +109,9 @@ By default (`mouse: true`) a left click does what the key for it does: a view in
 a list row selects it (and updates the preview), a preview tab (`Overview … Files Changed`) shows it,
 a commit on the Commits tab opens its diff (as `Enter` does), and the search box takes focus for editing (as `/` does;
 clicking anywhere else leaves it, as `Esc` does).
+On the Activity tab a review comment's `path#L12-L15` shows the lines it is about (from the comment's diff hunk,
+numbered as they are now, the commented lines marked `▌`), and clicking it opens the PR diff there: gh-dash passes
+`GHDIFF_GOTO=path:side:start:end` to the pager, and ghdiff scrolls to the lines and opens the thread (`prview/codeloc.go`).
 The wheel moves the list selection, or scrolls the preview when the pointer is over it.
 Each clickable thing is a bubblezone mark made where it is drawn (`carousel.WithZonePrefix`,
 `table` rows), and `internal/tui/mouse.go` maps a click back to it, so a new clickable only needs a mark and a line there.
