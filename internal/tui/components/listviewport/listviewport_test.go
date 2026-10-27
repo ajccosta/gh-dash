@@ -129,3 +129,33 @@ func TestNextItemAtLastItem(t *testing.T) {
 		t.Errorf("expected currId=9, got %d", m.GetCurrItem())
 	}
 }
+
+func TestNextItemAtLastItemKeepsBounds(t *testing.T) {
+	// Scrolling down past the last item, then selecting an item above it
+	// (as a click does) must not scroll the list.
+	m := newTestModel(testModelOpts{numItems: 10, viewportHeight: 5, itemHeight: 1})
+	for range 20 {
+		m.NextItem()
+	}
+	top := m.topBoundId
+	for range 3 {
+		m.PrevItem()
+	}
+	if m.topBoundId != top {
+		t.Errorf("selecting a visible item scrolled the list: topBoundId %d -> %d", top, m.topBoundId)
+	}
+}
+
+func TestLastItemThenPrevKeepsBounds(t *testing.T) {
+	m := newTestModel(testModelOpts{numItems: 10, viewportHeight: 5, itemHeight: 1})
+	m.LastItem()
+	if m.topBoundId != 5 {
+		t.Fatalf("expected topBoundId=5 after LastItem, got %d", m.topBoundId)
+	}
+	for range 4 {
+		m.PrevItem()
+	}
+	if m.topBoundId != 5 {
+		t.Errorf("expected no scroll while item 5 is visible, got topBoundId=%d", m.topBoundId)
+	}
+}

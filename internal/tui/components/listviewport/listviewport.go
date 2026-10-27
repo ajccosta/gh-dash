@@ -81,6 +81,7 @@ func (m *Model) getNumPrsPerPage() int {
 func (m *Model) ResetCurrItem() {
 	m.currId = 0
 	m.viewport.GotoTop()
+	m.topBoundId, m.bottomBoundId = 0, utils.Min(m.NumCurrentItems-1, m.getNumPrsPerPage()-1)
 }
 
 func (m *Model) GetCurrItem() int {
@@ -88,6 +89,9 @@ func (m *Model) GetCurrItem() int {
 }
 
 func (m *Model) NextItem() int {
+	if m.currId >= m.NumCurrentItems-1 {
+		return m.currId // the last item: nothing to scroll to (moving the bounds would skew them)
+	}
 	atBottomOfViewport := m.currId >= m.bottomBoundId
 	if atBottomOfViewport {
 		m.topBoundId += 1
@@ -115,12 +119,15 @@ func (m *Model) PrevItem() int {
 func (m *Model) FirstItem() int {
 	m.currId = 0
 	m.viewport.GotoTop()
+	m.topBoundId, m.bottomBoundId = 0, utils.Min(m.NumCurrentItems-1, m.getNumPrsPerPage()-1)
 	return m.currId
 }
 
 func (m *Model) LastItem() int {
 	m.currId = m.NumCurrentItems - 1
 	m.viewport.GotoBottom()
+	m.bottomBoundId = m.currId
+	m.topBoundId = utils.Max(0, m.currId-m.getNumPrsPerPage()+1)
 	return m.currId
 }
 
