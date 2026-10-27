@@ -281,6 +281,7 @@ type ColorThemeBorder struct {
 
 type ColorThemeBackground struct {
 	Selected Color `yaml:"selected" validate:"omitempty,color"`
+	Hover    Color `yaml:"hover,omitempty" validate:"omitempty,color"` // the clickable thing under the mouse
 }
 
 type ColorTheme struct {

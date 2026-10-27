@@ -54,8 +54,9 @@ type Model struct {
 	keys              *keys.KeyMap
 	sidebar           sidebar.Model
 	prView            prview.Model
-	pane              pane // focused pane, "arrows" preview navigation only
-	paneBelowSections pane // where ↓ from the sections bar goes back to
+	pane              pane     // focused pane, "arrows" preview navigation only
+	paneBelowSections pane     // where ↓ from the sections bar goes back to
+	mouse             mousePos // for hover feedback (hover.go)
 	issueSidebar      issueview.Model
 	branchSidebar     branchsidebar.Model
 	notificationView  notificationview.Model
@@ -899,6 +900,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, openCmd)
 		}
 
+	case tea.MouseMotionMsg:
+		if m.ctx.Config != nil && m.ctx.Config.Defaults.Mouse {
+			m.mouse = mousePos{x: msg.X, y: msg.Y, on: true}
+		}
+		return m, nil
+
 	case tea.MouseWheelMsg:
 		if !m.ctx.Config.Defaults.Mouse {
 			break
@@ -980,6 +987,10 @@ func (m *Model) View() tea.View {
 	v.ReportFocus = true
 	v.MouseMode = tea.MouseModeCellMotion
 
+	if m.ctx.Config != nil && m.ctx.Config.Defaults.Mouse {
+		v.MouseMode = tea.MouseModeAllMotion // hover feedback
+	}
+
 	if m.ctx.Config == nil {
 		v.Content = lipgloss.Place(
 			m.ctx.ScreenWidth,
@@ -1041,7 +1052,7 @@ func (m *Model) View() tea.View {
 	}
 
 	layers := []*lipgloss.Layer{
-		lipgloss.NewLayer(zone.Scan(s.String())),
+		lipgloss.NewLayer(m.paintHover(zone.Scan(s.String()))),
 	}
 
 	if currSection != nil {

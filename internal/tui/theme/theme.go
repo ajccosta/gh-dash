@@ -11,6 +11,7 @@ import (
 
 type Theme struct {
 	SelectedBackground      compat.AdaptiveColor // config.Theme.Colors.Background.Selected
+	HoverBackground         compat.AdaptiveColor // config.Theme.Colors.Background.Hover
 	PrimaryBorder           compat.AdaptiveColor // config.Theme.Colors.Border.Primary
 	FaintBorder             compat.AdaptiveColor // config.Theme.Colors.Border.Faint
 	SecondaryBorder         compat.AdaptiveColor // config.Theme.Colors.Border.Secondary
@@ -48,6 +49,10 @@ var DefaultTheme = &Theme{
 	SelectedBackground: compat.AdaptiveColor{
 		Light: lipgloss.ANSIColor(7),
 		Dark:  lipgloss.ANSIColor(236),
+	},
+	HoverBackground: compat.AdaptiveColor{
+		Light: lipgloss.ANSIColor(255),
+		Dark:  lipgloss.ANSIColor(235),
 	},
 	FaintBorder: compat.AdaptiveColor{
 		Light: lipgloss.ANSIColor(254),
@@ -138,6 +143,10 @@ func ParseTheme(cfg *config.Config) Theme {
 		DefaultTheme.SelectedBackground = _shimColor(
 			cfg.Theme.Colors.Inline.Background.Selected,
 			DefaultTheme.SelectedBackground,
+		)
+		DefaultTheme.HoverBackground = _shimColor(
+			cfg.Theme.Colors.Inline.Background.Hover,
+			DefaultTheme.HoverBackground,
 		)
 		DefaultTheme.PrimaryBorder = _shimColor(
 			cfg.Theme.Colors.Inline.Border.Primary,
