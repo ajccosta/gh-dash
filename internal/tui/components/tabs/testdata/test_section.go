@@ -125,6 +125,16 @@ func (t *TestSection) RowAt(msg tea.MouseMsg) int {
 	panic("unimplemented")
 }
 
+// HeaderAt implements section.Section.
+func (t *TestSection) HeaderAt(msg tea.MouseMsg) string {
+	panic("unimplemented")
+}
+
+// SortBy implements section.Section.
+func (t *TestSection) SortBy(key string) tea.Cmd {
+	panic("unimplemented")
+}
+
 // SearchAt implements section.Section.
 func (t *TestSection) SearchAt(msg tea.MouseMsg) bool {
 	panic("unimplemented")

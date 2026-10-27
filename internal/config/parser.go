@@ -311,6 +311,9 @@ type IconThemeConfig struct {
 type TableUIThemeConfig struct {
 	ShowSeparator bool `yaml:"showSeparator" default:"true"`
 	Compact       bool `yaml:"compact"       default:"false"`
+	// ShortHeaders keeps the terse PR headers (✎ Rv CI Upd) instead of
+	// Comments, Review, Checks and Updated.
+	ShortHeaders bool `yaml:"shortHeaders" default:"false"`
 }
 
 type UIThemeConfig struct {

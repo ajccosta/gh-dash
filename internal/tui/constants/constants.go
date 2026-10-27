@@ -32,6 +32,8 @@ const (
 	ApprovedIcon         = "✓"
 	ChangesRequestedIcon = "±"
 	DotIcon              = "●"
+	SortDescIcon         = "▼"
+	SortAscIcon          = "▲"
 	SmallDotIcon         = "⋅"
 	HorizontalLineIcon   = "─"
 	EmptyIcon            = "-"

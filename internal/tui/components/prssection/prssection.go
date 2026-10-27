@@ -25,8 +25,10 @@ const SectionType = "pr"
 
 type Model struct {
 	section.BaseModel
-	Prs []prrow.Data
-	cfg config.PrsSectionConfig
+	Prs      []prrow.Data
+	cfg      config.PrsSectionConfig
+	sort     string // the column a header click sorted by, "" for the search's order
+	sortDesc bool
 }
 
 func NewModel(
@@ -208,6 +210,7 @@ func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
 			m.TotalCount = msg.TotalCount
 			m.PageInfo = &msg.PageInfo
 			m.SetIsLoading(false)
+			m.sortPrs()
 			m.Table.SetRows(m.BuildRows())
 			m.Table.SetLastUpdated(time.Now())
 			m.UpdateTotalItemsCount(m.TotalCount)
@@ -274,88 +277,17 @@ func GetSectionColumns(
 	labelsLayout := config.MergeColumnConfigs(dLayout.Labels, sLayout.Labels)
 	linesLayout := config.MergeColumnConfigs(dLayout.Lines, sLayout.Lines)
 
-	if !ctx.Config.Theme.Ui.Table.Compact {
-		return []table.Column{
-			{
-				Title:  "",
-				Width:  utils.IntPtr(3),
-				Hidden: stateLayout.Hidden,
-			},
-			{
-				Title:  "Title",
-				Grow:   utils.BoolPtr(true),
-				Hidden: titleLayout.Hidden,
-			},
-			{
-				Title:  constants.LabelsIcon,
-				Width:  labelsLayout.Width,
-				Hidden: labelsLayout.Hidden,
-			},
-			{
-				Title:  "Assignees",
-				Width:  assigneesLayout.Width,
-				Hidden: assigneesLayout.Hidden,
-			},
-			{
-				Title:  "Base",
-				Width:  baseLayout.Width,
-				Hidden: baseLayout.Hidden,
-			},
-			{
-				Title:  constants.CommentsIcon,
-				Width:  utils.IntPtr(4),
-				Hidden: numCommentsLayout.Hidden,
-			},
-			{
-				Title:  "Rv",
-				Width:  utils.IntPtr(4),
-				Hidden: reviewStatusLayout.Hidden,
-			},
-			{
-				Title:  "CI",
-				Width:  &ctx.Styles.PrSection.CiCellWidth,
-				Grow:   new(bool),
-				Hidden: ciLayout.Hidden,
-			},
-			{
-				Title:  "±",
-				Width:  linesLayout.Width,
-				Hidden: linesLayout.Hidden,
-			},
-			{
-				Title:  "Upd",
-				Width:  updatedAtLayout.Width,
-				Hidden: updatedAtLayout.Hidden,
-			},
-			{
-				Title:  "Age",
-				Width:  createdAtLayout.Width,
-				Hidden: createdAtLayout.Hidden,
-			},
-		}
-	}
-
-	return []table.Column{
+	cols := []table.Column{
 		{
 			Title:  "",
 			Width:  utils.IntPtr(3),
 			Hidden: stateLayout.Hidden,
 		},
-		{
-			Title:  "Repo",
-			Width:  repoLayout.Width,
-			Hidden: repoLayout.Hidden,
-		},
-		{
+		sortable(ctx, table.Column{
 			Title:  "Title",
 			Grow:   utils.BoolPtr(true),
 			Hidden: titleLayout.Hidden,
-		},
-		{
-			Title:  "Author",
-			Width:  authorLayout.Width,
-			Hidden: authorLayout.Hidden,
-		},
+		}, "title", "Title"),
 		{
 			Title:  constants.LabelsIcon,
 			Width:  labelsLayout.Width,
@@ -366,46 +298,66 @@ func GetSectionColumns(
 			Width:  assigneesLayout.Width,
 			Hidden: assigneesLayout.Hidden,
 		},
-		{
+		sortable(ctx, table.Column{
 			Title:  "Base",
 			Width:  baseLayout.Width,
 			Hidden: baseLayout.Hidden,
-		},
-		{
+		}, "base", "Base"),
+		sortable(ctx, table.Column{
 			Title:  constants.CommentsIcon,
 			Width:  utils.IntPtr(4),
 			Hidden: numCommentsLayout.Hidden,
-		},
-		{
+		}, "comments", "Comments"),
+		sortable(ctx, table.Column{
 			Title:  "Rv",
 			Width:  utils.IntPtr(4),
 			Hidden: reviewStatusLayout.Hidden,
-		},
-		{
+		}, "review", "Review"),
+		sortable(ctx, table.Column{
 			Title:  "CI",
 			Width:  &ctx.Styles.PrSection.CiCellWidth,
 			Grow:   new(bool),
 			Hidden: ciLayout.Hidden,
-		},
-		{
+		}, "checks", "Checks"),
+		sortable(ctx, table.Column{
 			Title:  "±",
 			Width:  linesLayout.Width,
 			Hidden: linesLayout.Hidden,
-		},
-		{
+		}, "lines", "±"),
+		sortable(ctx, table.Column{
 			Title:  "Upd",
 			Width:  updatedAtLayout.Width,
 			Hidden: updatedAtLayout.Hidden,
-		},
-		{
+		}, "updated", "Updated"),
+		sortable(ctx, table.Column{
 			Title:  "Age",
 			Width:  createdAtLayout.Width,
 			Hidden: createdAtLayout.Hidden,
-		},
+		}, "created", "Age"),
 	}
+	if !ctx.Config.Theme.Ui.Table.Compact {
+		return cols
+	}
+
+	// compact adds the repo and the author, around the title
+	return append([]table.Column{
+		cols[0],
+		sortable(ctx, table.Column{
+			Title:  "Repo",
+			Width:  repoLayout.Width,
+			Hidden: repoLayout.Hidden,
+		}, "repo", "Repo"),
+		cols[1],
+		sortable(ctx, table.Column{
+			Title:  "Author",
+			Width:  authorLayout.Width,
+			Hidden: authorLayout.Hidden,
+		}, "author", "Author"),
+	}, cols[2:]...)
 }
 
-func (m Model) BuildRows() []table.Row {
+func (m *Model) BuildRows() []table.Row {
+	m.syncSortArrow()
 	var rows []table.Row
 	currItem := m.Table.GetCurrItem()
 	for i, currPr := range m.Prs {

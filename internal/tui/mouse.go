@@ -67,6 +67,9 @@ func (m *Model) handleMouseClick(msg tea.MouseClickMsg) (bool, tea.Cmd) {
 		return true, s.SetIsSearching(true)
 	}
 	if s := m.getCurrSection(); s != nil {
+		if k := s.HeaderAt(msg); k != "" {
+			return true, tea.Batch(s.SortBy(k), m.onViewedRowChanged())
+		}
 		if i := s.RowAt(msg); i >= 0 {
 			if i == s.CurrRow() {
 				return true, nil

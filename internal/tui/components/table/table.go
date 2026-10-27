@@ -28,6 +28,8 @@ type Model struct {
 	loadingSpinner spinner.Model
 	dimensions     constants.Dimensions
 	rowsViewport   listviewport.Model
+	SortKey        string // the column the rows are sorted by (its header gets an arrow)
+	SortDesc       bool
 	ContentHeight  int // Optional: override content height (0 = use default from config)
 }
 
@@ -38,6 +40,7 @@ type Column struct {
 	ComputedWidth int
 	Grow          *bool
 	Align         *lipgloss.Position // Optional alignment (defaults to left)
+	SortKey       string             // set when a click on the header sorts by this column
 }
 
 type Row []string
@@ -226,7 +229,7 @@ func (m *Model) renderHeaderColumns() []string {
 		}
 
 		if column.Width != nil {
-			title := column.Title
+			title := m.headerTitle(column)
 			style := m.ctx.Styles.Table.TitleCellStyle
 			// Align headers for right-aligned columns
 			// Use padding-free style to avoid truncation from PlaceHorizontal + padding
@@ -239,16 +242,16 @@ func (m *Model) renderHeaderColumns() []string {
 				title = lipgloss.PlaceHorizontal(*column.Width, headerAlign, title)
 				style = lipgloss.NewStyle().Bold(true).Foreground(m.ctx.Theme.PrimaryText)
 			}
-			renderedColumns[i] = style.
+			renderedColumns[i] = markHeader(column, style.
 				Width(*column.Width).
 				MaxWidth(*column.Width).
-				Render(title)
+				Render(title))
 			takenWidth += *column.Width
 			continue
 		}
 
-		cell := m.ctx.Styles.Table.TitleCellStyle.Render(column.Title)
-		renderedColumns[i] = cell
+		cell := m.ctx.Styles.Table.TitleCellStyle.Render(m.headerTitle(column))
+		renderedColumns[i] = markHeader(column, cell)
 		takenWidth += lipgloss.Width(cell)
 	}
 
@@ -263,13 +266,48 @@ func (m *Model) renderHeaderColumns() []string {
 			continue
 		}
 
-		renderedColumns[i] = m.ctx.Styles.Table.TitleCellStyle.
+		renderedColumns[i] = markHeader(column, m.ctx.Styles.Table.TitleCellStyle.
 			Width(growCellWidth).
 			MaxWidth(growCellWidth).
-			Render(column.Title)
+			Render(m.headerTitle(column)))
 	}
 
 	return renderedColumns
+}
+
+// headerTitle is the column's title, with an arrow when the rows are sorted
+// by it.
+func (m *Model) headerTitle(c Column) string {
+	if c.SortKey == "" || c.SortKey != m.SortKey {
+		return c.Title
+	}
+	if m.SortDesc {
+		return c.Title + constants.SortDescIcon
+	}
+	return c.Title + constants.SortAscIcon
+}
+
+const headerZonePrefix = "table-header-"
+
+// markHeader makes a sortable column's header clickable.
+func markHeader(c Column, cell string) string {
+	if c.SortKey == "" || zone.DefaultManager == nil {
+		return cell
+	}
+	return zone.Mark(headerZonePrefix+c.SortKey, cell)
+}
+
+// HeaderAt returns the sort key of the header under the mouse, or "".
+func (m *Model) HeaderAt(msg tea.MouseMsg) string {
+	if zone.DefaultManager == nil {
+		return ""
+	}
+	for _, c := range m.getShownColumns() {
+		if c.SortKey != "" && zone.Get(headerZonePrefix+c.SortKey).InBounds(msg) {
+			return c.SortKey
+		}
+	}
+	return ""
 }
 
 func (m *Model) renderHeader() string {

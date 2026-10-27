@@ -115,5 +115,10 @@ numbered as they are now, the commented lines marked `▌`), and clicking it ope
 The wheel moves the list selection, or scrolls the preview when the pointer is over it.
 Whatever is clickable gets a faint background while the mouse is over it (`theme.colors.background.hover`;
 `internal/tui/hover.go` tints the smallest zone under the pointer, so every new mark gets it too).
+Clicking a PR column header sorts by it (▼/▲ marks the order; clicking again reverses it). Updated and Age are
+sorted by GitHub (`sort:updated-desc` etc. replace any `sort:` in the search), so the order holds across pages; the
+other columns order the PRs loaded so far. Each sortable column is one entry in `prSorts` (`prssection/sort.go`).
+The headers are spelled out (Comments, Review, Checks, Updated); `theme.ui.table.shortHeaders: true` brings back
+`✎ Rv CI Upd`.
 Each clickable thing is a bubblezone mark made where it is drawn (`carousel.WithZonePrefix`,
-`table` rows), and `internal/tui/mouse.go` maps a click back to it, so a new clickable only needs a mark and a line there.
+`table` rows and headers), and `internal/tui/mouse.go` maps a click back to it, so a new clickable only needs a mark and a line there.

@@ -175,6 +175,8 @@ type Table interface {
 	CurrRow() int
 	NextRow() int
 	RowAt(msg tea.MouseMsg) int
+	HeaderAt(msg tea.MouseMsg) string
+	SortBy(key string) tea.Cmd
 	SearchAt(msg tea.MouseMsg) bool
 	SelectRow(i int)
 	PrevRow() int
@@ -337,6 +339,14 @@ func (m *BaseModel) CurrRow() int {
 func (m *BaseModel) RowAt(msg tea.MouseMsg) int {
 	return m.Table.RowAt(msg)
 }
+
+// HeaderAt returns the sort key of the column header under the mouse, or "".
+func (m *BaseModel) HeaderAt(msg tea.MouseMsg) string {
+	return m.Table.HeaderAt(msg)
+}
+
+// SortBy orders the rows by a column; sections that can sort override it.
+func (m *BaseModel) SortBy(key string) tea.Cmd { return nil }
 
 // SearchAt reports whether the mouse is on the search bar.
 func (m *BaseModel) SearchAt(msg tea.MouseMsg) bool {
