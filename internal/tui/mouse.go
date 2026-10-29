@@ -14,7 +14,7 @@ import (
 // Mouse support (defaults.mouse): a left click on a view, a section tab, the
 // "+" button, a list row or a preview tab does what the keys for it do. Every
 // clickable thing is a bubblezone mark made where it is drawn; this maps the
-// click back to it. Approve, Merge and the donate link are handled in Update.
+// click back to it. The preview buttons are handled in Update.
 
 // handleMouseClick reports whether the click landed on something it handles.
 func (m *Model) handleMouseClick(msg tea.MouseClickMsg) (bool, tea.Cmd) {

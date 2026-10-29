@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"reflect"
 	"runtime/debug"
@@ -18,7 +17,6 @@ import (
 	"charm.land/lipgloss/v2/compat"
 	log "charm.land/log/v2"
 	"github.com/atotto/clipboard"
-	"github.com/cli/go-gh/v2/pkg/browser"
 	"github.com/cli/go-gh/v2/pkg/repository"
 	zone "github.com/lrstanley/bubblezone/v2"
 
@@ -890,22 +888,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if handled, cmd := m.handleMouseClick(msg); handled {
 				return m, cmd
 			}
-		}
-		if zone.Get("donate").InBounds(msg) {
-			log.Info("Donate clicked", "msg", msg)
-			openCmd := func() tea.Msg {
-				// Discard the launcher's stdout/stderr so any noise (e.g.
-				// GTK / GVFS warnings from xdg-open / gnome-open) does not
-				// leak into the TUI's terminal and corrupt the display.
-				// See #829, #584, #679.
-				b := browser.New("", io.Discard, io.Discard)
-				err := b.Browse("https://github.com/sponsors/dlvhdr")
-				if err != nil {
-					return constants.ErrMsg{Err: err}
-				}
-				return nil
-			}
-			cmds = append(cmds, openCmd)
 		}
 
 	case tea.MouseReleaseMsg:

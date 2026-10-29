@@ -116,7 +116,7 @@ glamour starts them under the bullet).
 
 ```yaml
 defaults:
-  mouse: true   # the default; false: upstream behaviour (only the Approve, Merge and Close buttons and the donate link click)
+  mouse: true   # the default; false: upstream behaviour (only the Approve, Merge and Close buttons click)
 ```
 
 By default (`mouse: true`) a left click does what the key for it does: a view in the switcher

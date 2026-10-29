@@ -50,7 +50,6 @@ const (
 	CodeReviewIcon     = "@"
 	CommentIcon        = "✎"
 	CommentsIcon       = "✎"
-	DonateIcon         = "♥"
 	DraftIcon          = "○"
 	CommitIcon         = "•"
 	VerticalCommitIcon = "○"

@@ -8,11 +8,9 @@ import (
 	bbHelp "charm.land/bubbles/v2/help"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
-	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/dlvhdr/gh-dash/v4/internal/config"
 	"github.com/dlvhdr/gh-dash/v4/internal/git"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/constants"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/context"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/keys"
 	"github.com/dlvhdr/gh-dash/v4/internal/utils"
@@ -54,12 +52,6 @@ func (m Model) View() string {
 			Foreground(m.ctx.Theme.SelectedBackground).
 			Padding(0, 1).
 			Render("? help")
-		donationIndicator := zone.Mark("donate", lipgloss.NewStyle().
-			Background(m.ctx.Theme.SelectedBackground).
-			Foreground(m.ctx.Theme.WarningText).
-			Padding(0, 1).
-			Underline(true).
-			Render(fmt.Sprintf("%s donate", constants.DonateIcon)))
 		viewSwitcher := m.renderViewSwitcher(m.ctx, true)
 		leftSection := ""
 		if m.leftSection != nil {
@@ -71,8 +63,7 @@ func (m Model) View() string {
 		}
 		// A task status (e.g. gh's error message) must fit on the line: drop
 		// the key hints first, then cut the status.
-		fixed := lipgloss.Width(leftSection) + lipgloss.Width(helpIndicator) +
-			lipgloss.Width(donationIndicator)
+		fixed := lipgloss.Width(leftSection) + lipgloss.Width(helpIndicator)
 		if fixed+lipgloss.Width(viewSwitcher)+lipgloss.Width(rightSection) > m.ctx.ScreenWidth {
 			viewSwitcher = m.renderViewSwitcher(m.ctx, false)
 		}
@@ -91,12 +82,12 @@ func (m Model) View() string {
 							lipgloss.Width(rightSection)-
 							lipgloss.Width(
 								helpIndicator,
-							)-lipgloss.Width(donationIndicator),
+							),
 					)))
 
 		footer = m.ctx.Styles.Common.FooterStyle.
 			Render(lipgloss.JoinHorizontal(lipgloss.Top, viewSwitcher, leftSection, spacing,
-				rightSection, donationIndicator, helpIndicator))
+				rightSection, helpIndicator))
 	}
 
 	if m.ShowAll {
