@@ -879,13 +879,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if handled, cmd := m.handleDividerMouse(msg); handled {
 			return m, cmd
 		}
-		if zone.Get(prview.ApproveZoneId).InBounds(msg) && m.sidebar.IsOpen &&
-			(m.ctx.View == config.PRsView || m.notificationView.GetSubjectPR() != nil) {
-			return m, m.approveCurrentPR()
-		}
-		if zone.Get(prview.MergeZoneId).InBounds(msg) && m.sidebar.IsOpen &&
-			(m.ctx.View == config.PRsView || m.notificationView.GetSubjectPR() != nil) {
-			return m, m.mergeCurrentPR()
+		if m.sidebar.IsOpen && (m.ctx.View == config.PRsView || m.notificationView.GetSubjectPR() != nil) {
+			for _, id := range m.prView.ButtonIds() {
+				if zone.Get(id).InBounds(msg) {
+					return m, m.pressButton(id)
+				}
+			}
 		}
 		if m.ctx.Config.Defaults.Mouse {
 			if handled, cmd := m.handleMouseClick(msg); handled {
@@ -1076,7 +1075,11 @@ func (m *Model) view() tea.View {
 		)
 	} else {
 		prSelected := m.ctx.View == config.PRsView && m.getCurrRowData() != nil
-		m.footer.SetPRActions(prSelected && m.prView.CanApprove(), prSelected && m.prView.CanMerge())
+		var hints []string
+		if prSelected {
+			hints = m.prView.ButtonHints()
+		}
+		m.footer.SetPRActions(hints)
 		s.WriteString(m.footer.View())
 	}
 

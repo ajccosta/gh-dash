@@ -39,11 +39,8 @@ const (
 	paneSections
 	panePreview
 	paneViews   // the view switcher left of the sections bar
-	paneApprove // the approve button at the top of the preview
-	paneMerge   // the merge button, right of the approve button
+	paneButtons // the button row at the top of the preview (prview.FocusedButton)
 )
-
-func isButtonPane(p pane) bool { return p == paneApprove || p == paneMerge }
 
 func (m *Model) arrowNavEnabled() bool {
 	return m.ctx.Config.Defaults.Preview.Navigation == "arrows" &&
@@ -51,26 +48,31 @@ func (m *Model) arrowNavEnabled() bool {
 }
 
 func (m *Model) setPane(p pane) {
-	if p == paneApprove && !m.prView.CanApprove() {
-		p = panePreview
+	if p == paneButtons && m.prView.FocusedButton() == "" {
+		// Not on a button yet: the first one, else the tabs.
+		if ids := m.prView.ButtonIds(); len(ids) > 0 {
+			m.prView.SetFocusedButton(ids[0])
+		} else {
+			p = panePreview
+		}
 	}
-	if p == paneMerge && !m.prView.CanMerge() {
-		p = panePreview
-	}
-	if (p == panePreview || isButtonPane(p)) &&
+	if (p == panePreview || p == paneButtons) &&
 		(!m.sidebar.IsOpen || m.ctx.View != config.PRsView) {
 		p = paneList
 	}
-	if p == paneList || p == panePreview || isButtonPane(p) {
+	if p == paneList || p == panePreview || p == paneButtons {
 		m.paneBelowSections = p
 	}
 	m.pane = p
 	m.tabs.SetFocused(p == paneSections)
 	m.tabs.SetViewsFocused(p == paneViews)
-	m.prView.SetFocused(p == panePreview || isButtonPane(p))
-	m.prView.SetApproveFocused(p == paneApprove)
-	m.prView.SetMergeFocused(p == paneMerge)
-	if isButtonPane(p) {
+	m.prView.SetFocused(p == panePreview || p == paneButtons)
+	if p != paneButtons {
+		m.prView.SetFocusedButton("")
+	} else {
+		m.prView.SetFocusedButton(m.prView.FocusedButton())
+	}
+	if p == paneButtons {
 		m.sidebar.ScrollToTop()
 	}
 	m.syncSidebar()
@@ -85,13 +87,14 @@ func (m *Model) handleArrowNav(msg tea.KeyMsg) (tea.Cmd, bool) {
 		}
 		return nil, false
 	}
-	if (m.pane == panePreview || isButtonPane(m.pane)) &&
+	if (m.pane == panePreview || m.pane == paneButtons) &&
 		(!m.sidebar.IsOpen || m.ctx.View != config.PRsView) {
 		m.setPane(paneList)
 	}
-	if (m.pane == paneApprove && !m.prView.CanApprove()) ||
-		(m.pane == paneMerge && !m.prView.CanMerge()) {
-		m.setPane(panePreview)
+	if m.pane == paneButtons && m.prView.ButtonAction(m.prView.FocusedButton()) == "" {
+		// The focused button went away (another PR, or this one changed).
+		m.prView.SetFocusedButton("")
+		m.setPane(paneButtons)
 	}
 	prs := m.ctx.View == config.PRsView
 
@@ -101,7 +104,7 @@ func (m *Model) handleArrowNav(msg tea.KeyMsg) (tea.Cmd, bool) {
 		if !prs {
 			return nil, false
 		}
-		if m.pane == panePreview || isButtonPane(m.pane) {
+		if m.pane == panePreview || m.pane == paneButtons {
 			m.setPane(paneList)
 		} else if m.getCurrRowData() != nil {
 			m.setPane(panePreview)
@@ -169,31 +172,16 @@ func (m *Model) handleArrowNav(msg tea.KeyMsg) (tea.Cmd, bool) {
 			return nil, true
 		}
 
-	case paneApprove:
+	case paneButtons:
+		ids := m.prView.ButtonIds()
+		i := slices.Index(ids, m.prView.FocusedButton())
 		switch k {
 		case "enter":
-			m.setPane(panePreview)
-			return m.approveCurrentPR(), true
-		case "up":
-			m.setPane(paneSections)
-			return nil, true
-		case "down":
-			m.setPane(panePreview)
-			return nil, true
-		case "left":
-			m.setPane(paneList)
-			return nil, true
-		case "right":
-			if m.prView.CanMerge() {
-				m.setPane(paneMerge)
+			cmd := m.pressButton(m.prView.FocusedButton())
+			if m.prView.IsTextInputBoxFocused() { // Approve's prompt opened
+				m.setPane(panePreview)
 			}
-			return nil, true
-		}
-
-	case paneMerge:
-		switch k {
-		case "enter":
-			return m.mergeCurrentPR(), true
+			return cmd, true
 		case "up":
 			m.setPane(paneSections)
 			return nil, true
@@ -201,13 +189,16 @@ func (m *Model) handleArrowNav(msg tea.KeyMsg) (tea.Cmd, bool) {
 			m.setPane(panePreview)
 			return nil, true
 		case "left":
-			if m.prView.CanApprove() {
-				m.setPane(paneApprove)
+			if i > 0 {
+				m.prView.SetFocusedButton(ids[i-1])
 			} else {
 				m.setPane(paneList)
 			}
 			return nil, true
 		case "right":
+			if i+1 < len(ids) {
+				m.prView.SetFocusedButton(ids[i+1])
+			}
 			return nil, true
 		}
 
@@ -267,43 +258,36 @@ func (m *Model) handleArrowNav(msg tea.KeyMsg) (tea.Cmd, bool) {
 }
 
 // paneAbovePreview is where ↑ at the top of the preview goes: the first
-// button of the button row (Approve, then Merge), else the sections bar.
+// button of the button row, else the sections bar.
 func (m *Model) paneAbovePreview() pane {
-	if m.prView.CanApprove() {
-		return paneApprove
-	}
-	if m.prView.CanMerge() {
-		return paneMerge
+	if len(m.prView.ButtonIds()) > 0 {
+		return paneButtons
 	}
 	return paneSections
 }
 
-// mergeCurrentPR asks to merge the previewed PR, exactly as the Merge key (m)
-// does: the "Are you sure you want to merge this PR? (y/N)" prompt, then
-// `gh pr merge`. The merge button calls it on click and enter.
-func (m *Model) mergeCurrentPR() tea.Cmd {
-	if !m.prView.CanMerge() || m.prView.IsTextInputBoxFocused() {
+// pressButton does what the preview button with this zone id does, exactly
+// as its key: Approve opens the approval prompt (v), the others ask "Are you
+// sure you want to … this PR? (y/N)" before running gh (m merge, x close).
+// Buttons call it on click and enter.
+func (m *Model) pressButton(id string) tea.Cmd {
+	action := m.prView.ButtonAction(id)
+	if action == "" || m.prView.IsTextInputBoxFocused() {
 		return nil
+	}
+	if action == "approve" {
+		return m.openSidebarForPRInput(m.prView.SetIsApproving)
 	}
 	if m.ctx.View == config.PRsView {
 		if m.getCurrRowData() == nil {
 			return nil
 		}
-		return m.promptConfirmation(m.getCurrSection(), "merge")
+		return m.promptConfirmation(m.getCurrSection(), action)
 	}
 	if m.notificationView.GetSubjectPR() != nil {
-		return m.promptConfirmationForNotificationPR("merge")
+		return m.promptConfirmationForNotificationPR(action)
 	}
 	return nil
-}
-
-// approveCurrentPR opens the approval prompt for the previewed PR, exactly as
-// the Approve key (v) does. The approve button calls it on click and enter.
-func (m *Model) approveCurrentPR() tea.Cmd {
-	if !m.prView.CanApprove() || m.prView.IsTextInputBoxFocused() {
-		return nil
-	}
-	return m.openSidebarForPRInput(m.prView.SetIsApproving)
 }
 
 // ensureCommitCursorVisible scrolls the preview to the selected commit.

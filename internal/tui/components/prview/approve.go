@@ -67,15 +67,6 @@ func (m *Model) CanApprove() bool {
 	return m.approveState() == approveEnabled
 }
 
-func (m *Model) SetApproveFocused(focused bool) {
-	m.approveFocused = focused
-	m.carousel.SetHighlighted(m.focused && !focused && !m.mergeFocused)
-}
-
-func (m *Model) IsApproveFocused() bool {
-	return m.approveFocused
-}
-
 func (m *Model) renderApproveButton() string {
 	switch m.approveState() {
 	case approveEnabled:
@@ -83,7 +74,7 @@ func (m *Model) renderApproveButton() string {
 			Bold(true).
 			Background(m.ctx.Theme.SuccessText).
 			Foreground(lipgloss.ANSIColor(0))
-		if m.focused && m.approveFocused {
+		if m.isButtonFocused(ApproveZoneId) {
 			style = style.Reverse(true)
 		}
 		button := style.Render(" ✓ Approve ")

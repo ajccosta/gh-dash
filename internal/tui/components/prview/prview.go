@@ -35,10 +35,9 @@ type Model struct {
 	carousel        carousel.Model
 	editor          cmpcontroller.Controller
 	summaryViewMore bool
-	focused         bool // preview has focus ("arrows" navigation)
-	commitCursor    int  // selected commit on the Commits tab
-	approveFocused  bool // the approve button has focus ("arrows" navigation)
-	mergeFocused    bool // the merge button has focus ("arrows" navigation)
+	focused         bool   // preview has focus ("arrows" navigation)
+	commitCursor    int    // selected commit on the Commits tab
+	focusedButton   string // zone id of the button with focus ("arrows" navigation), or ""
 }
 
 var tabs = []string{"Overview", "Activity", "Commits", "Checks", "Files Changed"}
@@ -259,16 +258,10 @@ func (m *Model) renderBranches() string {
 		lipgloss.NewStyle().
 			Foreground(m.ctx.Theme.SecondaryText).
 			Render(m.pr.Data.Primary.BaseRefName+" ← "+m.pr.Data.Primary.HeadRefName))
-	var buttons []string
-	for _, b := range []string{m.renderApproveButton(), m.renderMergeButton()} {
-		if b != "" {
-			buttons = append(buttons, b)
-		}
-	}
-	if len(buttons) == 0 {
+	button := m.renderButtons()
+	if button == "" {
 		return left
 	}
-	button := strings.Join(buttons, " ")
 	gap := m.width - lipgloss.Width(left) - lipgloss.Width(button) - 1
 	if gap < 1 {
 		// Not enough room: the button goes on its own line.

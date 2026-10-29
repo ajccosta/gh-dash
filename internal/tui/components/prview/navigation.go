@@ -21,7 +21,7 @@ func (m *Model) IsFocused() bool {
 
 func (m *Model) SetFocused(focused bool) {
 	m.focused = focused
-	m.carousel.SetHighlighted(focused && !m.approveFocused && !m.mergeFocused)
+	m.carousel.SetHighlighted(focused && m.focusedButton == "")
 }
 
 // MoveTab moves to the next (delta > 0) or previous tab. It reports false,

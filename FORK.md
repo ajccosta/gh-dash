@@ -40,7 +40,8 @@ With `navigation: arrows`, the PRs view is four panes and the arrow keys move be
 | preview | `Enter` or `d` | on the Commits tab: show the selected commit's diff |
 | approve button | `Enter` | approve, as `v` does (prompt for an optional comment, `Ctrl+d` submits) |
 | merge button | `Enter` | merge, as `m` does (asks `(y/N)` first, then runs `gh pr merge`) |
-| button row | `←` / `→` | between Approve and Merge; `←` on the first button focuses the PR list |
+| close button | `Enter` | close, as `x` does (asks `(y/N)` first, then runs `gh pr close`) |
+| button row | `←` / `→` | between Approve, Merge and Close; `←` on the first button focuses the PR list |
 | button row | `↑` / `↓` | sections bar / back to the tabs |
 | any | `Tab` | toggle between the PR list and the preview |
 | any | `Esc` | back to the PR list |
@@ -52,7 +53,7 @@ The Issues and Notifications views get the view switcher, the sections bar and t
 The commit diff comes from `gh api` (no local clone needed) and is shown with `pager.diff`
 (`less` by default, coloured here; `delta` and similar get the raw diff). Every other key keeps its usual meaning.
 
-## Approve and Merge buttons
+## Approve, Merge and Close buttons
 
 The PR preview shows `[ ✓ Approve ]` (green) at the right of the status line, above the tabs, on
 every tab. Clicking it, or `Enter` on it in arrows navigation, does exactly what `v` does: it opens
@@ -71,8 +72,12 @@ the merge method in the terminal). It shows on open, non-draft PRs, your own inc
 on draft, merged and closed ones. When the loaded PR data already says the merge is blocked, it is
 dimmed with the reason: `Merge (conflicts)`, `Merge (changes requested)`, `Merge (review required)`
 (still pressable: admins can bypass, and gh says why otherwise). The result shows as `✓ Merged #N`
-or `✗ Merge #N failed: <gh's error>`. The footer hint adds `m merge`. The focused button is in
-reverse video.
+or `✗ Merge #N failed: <gh's error>`. The footer hint adds `m merge`.
+
+Last, `[ ✕ Close ]` (red) does exactly what `x` does: the footer asks
+`Are you sure you want to close this PR? (y/N)`, and only `y` runs `gh pr close`. It shows on open
+PRs, drafts and your own included. The footer hint adds `x close`. The focused button is in
+reverse video. The buttons are one table (`prview/buttons.go`): a new button is one entry there.
 
 ## Plain glyphs
 
@@ -111,7 +116,7 @@ glamour starts them under the bullet).
 
 ```yaml
 defaults:
-  mouse: true   # the default; false: upstream behaviour (only Approve, Merge and the donate link click)
+  mouse: true   # the default; false: upstream behaviour (only the Approve, Merge and Close buttons and the donate link click)
 ```
 
 By default (`mouse: true`) a left click does what the key for it does: a view in the switcher

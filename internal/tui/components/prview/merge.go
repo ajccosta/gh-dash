@@ -42,15 +42,6 @@ func (m *Model) CanMerge() bool {
 	return pr.State == "OPEN" && !pr.IsDraft
 }
 
-func (m *Model) SetMergeFocused(focused bool) {
-	m.mergeFocused = focused
-	m.carousel.SetHighlighted(m.focused && !m.approveFocused && !focused)
-}
-
-func (m *Model) IsMergeFocused() bool {
-	return m.mergeFocused
-}
-
 func (m *Model) renderMergeButton() string {
 	if !m.CanMerge() {
 		return ""
@@ -65,7 +56,7 @@ func (m *Model) renderMergeButton() string {
 			Background(m.ctx.Styles.Colors.MergedPR.Dark).
 			Foreground(lipgloss.ANSIColor(0))
 	}
-	if m.focused && m.mergeFocused {
+	if m.isButtonFocused(MergeZoneId) {
 		style = style.Reverse(true)
 	}
 	button := style.Render(label)

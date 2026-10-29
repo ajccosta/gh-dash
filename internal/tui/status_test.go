@@ -68,9 +68,8 @@ func TestApproveKey_OwnPRShowsError(t *testing.T) {
 func TestFooterHints_ApproveAndMerge(t *testing.T) {
 	m := newStatusTestModel(t, "other")
 	m.ctx.View = config.PRsView
-	m.footer.SetPRActions(true, true)
-	require.Contains(t, footerText(m), "v approve · m merge")
-	m.footer.SetPRActions(false, true) // own PR
-	require.NotContains(t, footerText(m), "v approve")
-	require.Contains(t, footerText(m), "m merge")
+	m.footer.SetPRActions([]string{"v approve", "m merge", "x close"})
+	require.Contains(t, footerText(m), "v approve · m merge · x close")
+	m.footer.SetPRActions(nil)
+	require.NotContains(t, footerText(m), "approve")
 }

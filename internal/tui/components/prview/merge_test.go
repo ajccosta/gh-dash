@@ -1,6 +1,7 @@
 package prview
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -45,6 +46,35 @@ func TestMergeButton(t *testing.T) {
 			if tc.own {
 				require.NotContains(t, m.View(), "Approve", "own PR: Merge but no Approve")
 			}
+		})
+	}
+}
+
+func TestButtonRow(t *testing.T) {
+	testCases := map[string]struct {
+		state string
+		draft bool
+		own   bool
+		ids   []string
+		hints []string
+	}{
+		"open PR":     {state: "OPEN", ids: []string{ApproveZoneId, MergeZoneId, CloseZoneId}, hints: []string{"v approve", "m merge", "x close"}},
+		"own open PR": {state: "OPEN", own: true, ids: []string{MergeZoneId, CloseZoneId}, hints: []string{"m merge", "x close"}},
+		"draft":       {state: "OPEN", draft: true, ids: []string{ApproveZoneId, CloseZoneId}, hints: []string{"v approve", "x close"}},
+		"merged":      {state: "MERGED"},
+		"closed":      {state: "CLOSED"},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			pr := &data.PullRequestData{State: tc.state, Title: "t", IsDraft: tc.draft,
+				Mergeable: "MERGEABLE", ViewerDidAuthor: tc.own}
+			pr.Author.Login = "other"
+			m := newTestModelWithWidth(t, pr, nil, nil, 100)
+			m.ctx.User = "me"
+			require.Equal(t, tc.ids, m.ButtonIds())
+			require.Equal(t, tc.hints, m.ButtonHints())
+			require.Equal(t, len(tc.ids) > 0 && tc.ids[len(tc.ids)-1] == CloseZoneId,
+				strings.Contains(m.View(), "✕ Close"))
 		})
 	}
 }

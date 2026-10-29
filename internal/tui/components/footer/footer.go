@@ -25,8 +25,7 @@ type Model struct {
 	help            bbHelp.Model
 	ShowAll         bool
 	ShowConfirmQuit bool
-	canApprove      bool // the selected PR can be approved: hint at the approve key
-	canMerge        bool // the selected PR can be merged: hint at the merge key
+	prActions       []string // key hints ("v approve") for the selected PR's buttons
 }
 
 func NewModel(ctx *context.ProgramContext) Model {
@@ -130,21 +129,17 @@ func (m *Model) viewHint() string {
 		hint += " · ↑ to top bar, ←/→ pick view"
 	}
 	if m.ctx.View == config.PRsView {
-		if m.canApprove {
-			hint += " · " + keys.PRKeys.Approve.Help().Key + " approve"
-		}
-		if m.canMerge {
-			hint += " · " + keys.PRKeys.Merge.Help().Key + " merge"
+		for _, a := range m.prActions {
+			hint += " · " + a
 		}
 	}
 	return hint
 }
 
-// SetPRActions tells the footer which of approve and merge the selected PR
-// allows, for the key hints.
-func (m *Model) SetPRActions(canApprove, canMerge bool) {
-	m.canApprove = canApprove
-	m.canMerge = canMerge
+// SetPRActions sets the key hints of what the selected PR's buttons allow
+// ("v approve", "m merge"), or none.
+func (m *Model) SetPRActions(hints []string) {
+	m.prActions = hints
 }
 
 func (m *Model) renderViewSwitcher(ctx *context.ProgramContext, withHint bool) string {
