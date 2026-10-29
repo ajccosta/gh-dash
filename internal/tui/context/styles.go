@@ -66,11 +66,9 @@ type Styles struct {
 	}
 	Sidebar struct {
 		BorderWidth    int
-		PagerHeight    int
 		ContentPadding int
 		Root           lipgloss.Style
 		BottomRoot     lipgloss.Style
-		PagerStyle     lipgloss.Style
 		InputBox       lipgloss.Style
 	}
 	ListViewPort struct {
@@ -215,7 +213,6 @@ func InitStyles(theme theme.Theme) Styles {
 	s.PrSection.PrRepoCellWidth = 15
 	s.PrSection.PrAuthorCellWidth = 15
 
-	s.Sidebar.PagerHeight = 1
 	s.Sidebar.BorderWidth = 1
 	s.Sidebar.ContentPadding = 2
 	s.Sidebar.Root = lipgloss.NewStyle().
@@ -235,10 +232,6 @@ func InitStyles(theme theme.Theme) Styles {
 		BorderTop(true).
 		BorderStyle(lipgloss.ThickBorder()).
 		BorderForeground(theme.PrimaryBorder)
-	s.Sidebar.PagerStyle = lipgloss.NewStyle().
-		Height(s.Sidebar.PagerHeight).
-		Bold(true).
-		Foreground(theme.FaintText)
 
 	s.Sidebar.InputBox = lipgloss.NewStyle().
 		MarginTop(1).

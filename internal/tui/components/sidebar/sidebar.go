@@ -1,8 +1,6 @@
 package sidebar
 
 import (
-	"fmt"
-
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
@@ -68,12 +66,7 @@ func (m Model) View() string {
 			)
 		}
 
-		return style.Render(lipgloss.JoinVertical(
-			lipgloss.Top,
-			m.viewport.View(),
-			m.ctx.Styles.Sidebar.PagerStyle.
-				Render(fmt.Sprintf("%d%%", int(m.viewport.ScrollPercent()*100))),
-		))
+		return style.Render(m.viewport.View())
 	}
 
 	// Right mode
@@ -88,12 +81,7 @@ func (m Model) View() string {
 		)
 	}
 
-	return style.Render(lipgloss.JoinVertical(
-		lipgloss.Top,
-		m.viewport.View(),
-		m.ctx.Styles.Sidebar.PagerStyle.
-			Render(fmt.Sprintf("%d%%", int(m.viewport.ScrollPercent()*100))),
-	))
+	return style.Render(m.viewport.View())
 }
 
 func (m *Model) SetContent(data string) {
@@ -135,9 +123,9 @@ func (m *Model) UpdateProgramContext(ctx *context.ProgramContext) {
 	}
 	m.ctx = ctx
 	if m.ctx.PreviewPosition == "bottom" {
-		m.viewport.SetHeight(m.ctx.DynamicPreviewHeight - m.ctx.Styles.Sidebar.PagerHeight)
+		m.viewport.SetHeight(m.ctx.DynamicPreviewHeight)
 	} else {
-		m.viewport.SetHeight(m.ctx.MainContentHeight - m.ctx.Styles.Sidebar.PagerHeight)
+		m.viewport.SetHeight(m.ctx.MainContentHeight)
 	}
 	m.viewport.SetWidth(m.GetSidebarContentWidth())
 }
