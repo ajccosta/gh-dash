@@ -281,7 +281,7 @@ func GetSectionColumns(
 	cols := []table.Column{
 		{
 			Title:  "",
-			Width:  utils.IntPtr(3),
+			Width:  utils.IntPtr(6), // the PR number, "#1234"
 			Hidden: stateLayout.Hidden,
 		},
 		sortable(ctx, table.Column{

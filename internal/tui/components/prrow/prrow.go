@@ -68,33 +68,32 @@ func (pr *PullRequest) renderReviewStatus() string {
 	return reviewCellStyle.Render(pr.Ctx.Styles.Common.WaitingGlyph)
 }
 
+// renderState shows the PR's number in the colour of its state (open, draft,
+// queued, merged, closed), in place of a state icon.
 func (pr *PullRequest) renderState() string {
-	mergeCellStyle := lipgloss.NewStyle()
-
+	style := lipgloss.NewStyle().Bold(true)
 	if pr.Data.Primary == nil {
-		return mergeCellStyle.Foreground(pr.Ctx.Theme.SuccessText).Render("•")
+		return style.Foreground(pr.Ctx.Theme.SuccessText).Render("•")
 	}
+	return style.Foreground(pr.stateColor()).Render(fmt.Sprintf("#%d", pr.Data.Primary.Number))
+}
 
+func (pr *PullRequest) stateColor() compat.AdaptiveColor {
 	switch pr.Data.Primary.State {
 	case "OPEN":
 		if pr.Data.Primary.IsInMergeQueue {
-			return mergeCellStyle.Foreground(pr.Ctx.Theme.WarningText).
-				Render(constants.MergeQueueIcon)
+			return pr.Ctx.Theme.WarningText
 		}
 		if pr.Data.Primary.IsDraft {
-			return mergeCellStyle.Foreground(pr.Ctx.Theme.FaintText).Render(constants.DraftIcon)
-		} else {
-			return mergeCellStyle.Foreground(pr.Ctx.Styles.Colors.OpenPR).Render(constants.OpenIcon)
+			return pr.Ctx.Theme.FaintText
 		}
+		return pr.Ctx.Styles.Colors.OpenPR
 	case "CLOSED":
-		return mergeCellStyle.Foreground(pr.Ctx.Styles.Colors.ClosedPR).
-			Render(constants.ClosedIcon)
+		return pr.Ctx.Styles.Colors.ClosedPR
 	case "MERGED":
-		return mergeCellStyle.Foreground(pr.Ctx.Styles.Colors.MergedPR).
-			Render(constants.MergedIcon)
-	default:
-		return mergeCellStyle.Foreground(pr.Ctx.Theme.FaintText).Render("-")
+		return pr.Ctx.Styles.Colors.MergedPR
 	}
+	return pr.Ctx.Theme.FaintText
 }
 
 func (pr *PullRequest) GetStatusChecksRollup() checks.CommitState {
@@ -177,12 +176,8 @@ func keepSameSpacesOnAddDeletions(str string) string {
 }
 
 func (pr *PullRequest) renderTitle() string {
-	return components.RenderIssueTitle(
-		pr.Ctx,
-		pr.Data.Primary.State,
-		pr.Data.Primary.Title,
-		pr.Data.Primary.Number,
-	)
+	// The number is in the state column.
+	return components.GetIssueTextStyle(pr.Ctx).Bold(true).Render(pr.Data.Primary.Title)
 }
 
 func (pr *PullRequest) renderExtendedTitle(isSelected bool) string {
@@ -195,7 +190,7 @@ func (pr *PullRequest) renderExtendedTitle(isSelected bool) string {
 	author := baseStyle.Bold(true).Render(fmt.Sprintf("@%s",
 		pr.Data.Primary.GetAuthor(pr.Ctx.Theme, pr.ShowAuthorIcon)))
 	top := lipgloss.JoinHorizontal(lipgloss.Top, pr.Data.Primary.Repository.NameWithOwner,
-		fmt.Sprintf(" #%d by %s", pr.Data.Primary.Number, author))
+		" by "+author)
 	branchHidden := pr.Ctx.Config.Defaults.Layout.Prs.Base.Hidden
 	if branchHidden == nil || !*branchHidden {
 		branch := baseStyle.Render(pr.Data.Primary.HeadRefName)

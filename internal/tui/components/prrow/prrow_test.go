@@ -6,6 +6,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/compat"
+	"github.com/charmbracelet/x/ansi"
 	graphql "github.com/cli/shurcooL-graphql"
 	checks "github.com/dlvhdr/x/gh-checks"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/table"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/constants"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/context"
+	"github.com/dlvhdr/gh-dash/v4/internal/tui/theme"
 )
 
 func TestGetStatusChecksRollup(t *testing.T) {
@@ -311,5 +313,27 @@ func TestRenderLabels(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestStateColumnShowsNumber(t *testing.T) {
+	cfg, err := config.ParseConfig(config.Location{
+		ConfigFlag:       "../../../config/testdata/test-config.yml",
+		SkipGlobalConfig: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := &context.ProgramContext{Config: &cfg}
+	ctx.Theme = theme.ParseTheme(ctx.Config)
+	ctx.Styles = context.InitStyles(ctx.Theme)
+	for _, state := range []string{"OPEN", "CLOSED", "MERGED"} {
+		pr := &PullRequest{
+			Data: &Data{Primary: &data.PullRequestData{Number: 42, State: state}},
+			Ctx:  ctx,
+		}
+		if got := ansi.Strip(pr.renderState()); got != "#42" {
+			t.Errorf("%s: state column %q, want #42", state, got)
+		}
 	}
 }
