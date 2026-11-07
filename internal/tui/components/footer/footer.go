@@ -124,7 +124,28 @@ func (m *Model) viewHint() string {
 			hint += " · " + a
 		}
 	}
+	if m.ctx.Config != nil {
+		for _, kb := range m.footerKeybindings() {
+			if kb.Footer && kb.Name != "" {
+				hint += " · " + kb.Key + " " + kb.Name
+			}
+		}
+	}
 	return hint
+}
+
+// footerKeybindings are the custom keybindings of the current view.
+func (m *Model) footerKeybindings() []config.Keybinding {
+	kbs := m.ctx.Config.Keybindings
+	switch m.ctx.View {
+	case config.PRsView:
+		return kbs.Prs
+	case config.IssuesView:
+		return kbs.Issues
+	case config.NotificationsView:
+		return kbs.Notifications
+	}
+	return nil
 }
 
 // SetPRActions sets the key hints of what the selected PR's buttons allow
