@@ -150,15 +150,22 @@ func (m Model) View() string {
 		} else {
 			label = faint.Render("  " + label)
 		}
-		opts := make([]string, len(f.Options))
-		for oi, o := range f.Options {
-			s := " " + o + " "
+		lo, hi := visibleOptions(f, max(20, min(70, m.ctx.ScreenWidth-titleW-16)))
+		opts := []string{}
+		if lo > 0 {
+			opts = append(opts, faint.Render("‹"))
+		}
+		for oi := lo; oi <= hi; oi++ {
+			s := " " + f.Options[oi] + " "
 			if oi == f.Sel {
 				s = chosen.Render(s)
 			} else {
 				s = faint.Render(s)
 			}
-			opts[oi] = zone.Mark(optionZone(fi, oi), s)
+			opts = append(opts, zone.Mark(optionZone(fi, oi), s))
+		}
+		if hi < len(f.Options)-1 {
+			opts = append(opts, faint.Render("›"))
 		}
 		lines = append(lines, label+"  "+strings.Join(opts, " "))
 	}
@@ -190,6 +197,27 @@ func (m Model) View() string {
 		BorderForeground(t.PrimaryBorder).
 		Padding(1, 3).
 		Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
+}
+
+// visibleOptions is the run of options shown when they don't all fit in
+// width: the chosen one and as many around it as fit, ‹ › marking the rest.
+func visibleOptions(f Field, width int) (int, int) {
+	w := func(i int) int { return lipgloss.Width(f.Options[i]) + 3 } // " o " and the gap
+	lo, hi, used := f.Sel, f.Sel, w(f.Sel)+4                         // room for ‹ and ›
+	for grew := true; grew; {
+		grew = false
+		if hi+1 < len(f.Options) && used+w(hi+1) <= width {
+			hi++
+			used += w(hi)
+			grew = true
+		}
+		if lo > 0 && used+w(lo-1) <= width {
+			lo--
+			used += w(lo)
+			grew = true
+		}
+	}
+	return lo, hi
 }
 
 // offset is where the box's top left corner goes: the middle of the screen.

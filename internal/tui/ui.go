@@ -66,7 +66,8 @@ type Model struct {
 	notificationView  notificationview.Model
 	currSectionId     int
 	footer            footer.Model
-	dialog            dialog.Model // the form drawn over everything (merge, ...)
+	dialog            dialog.Model      // the form drawn over everything (merge, ...)
+	formValues        map[string]string // a keybinding form's choices, while its command is made (form.go)
 	repo              section.Section
 	prs               []section.Section
 	issues            []section.Section

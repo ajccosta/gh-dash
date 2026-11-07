@@ -215,6 +215,23 @@ type Keybinding struct {
 	// Footer shows the key and its name in the footer's hint, so it is found
 	// without opening the help.
 	Footer bool `yaml:"footer,omitempty"`
+	// Form asks for choices in a dialog before the command runs; the command
+	// reads them as {{.Form.<name>}}.
+	Form *KeybindingForm `yaml:"form,omitempty"`
+}
+
+type KeybindingForm struct {
+	Title  string      `yaml:"title,omitempty"`
+	Fields []FormField `yaml:"fields"`
+}
+
+// FormField is one row of choices. OptionsCommand adds the lines it prints
+// (a shell command, run when the dialog opens) after Options.
+type FormField struct {
+	Name           string   `yaml:"name"`
+	Title          string   `yaml:"title,omitempty"`
+	Options        []string `yaml:"options,omitempty"`
+	OptionsCommand string   `yaml:"optionsCommand,omitempty"`
 }
 
 func (kb Keybinding) NewBinding(previous *key.Binding) key.Binding {

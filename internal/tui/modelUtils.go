@@ -73,7 +73,9 @@ func (m *Model) executeKeybinding(key string) tea.Cmd {
 		}
 
 		log.Info("executing keybind", "key", keybinding.Key, "command", keybinding.Command)
-		return m.runCustomUniversalCommand(keybinding.Command)
+		return m.withForm(keybinding, nil, func() tea.Cmd {
+			return m.runCustomUniversalCommand(keybinding.Command)
+		})
 	}
 
 	switch m.ctx.View {
@@ -85,7 +87,9 @@ func (m *Model) executeKeybinding(key string) tea.Cmd {
 
 			switch data := currRowData.(type) {
 			case *data.IssueData:
-				return m.runCustomIssueCommand(keybinding.Command, data)
+				return m.withForm(keybinding, data, func() tea.Cmd {
+					return m.runCustomIssueCommand(keybinding.Command, data)
+				})
 			}
 		}
 	case config.PRsView:
@@ -98,7 +102,9 @@ func (m *Model) executeKeybinding(key string) tea.Cmd {
 
 			switch data := currRowData.(type) {
 			case *prrow.Data:
-				return m.runCustomPRCommand(keybinding.Command, data)
+				return m.withForm(keybinding, data, func() tea.Cmd {
+					return m.runCustomPRCommand(keybinding.Command, data)
+				})
 			}
 		}
 	case config.RepoView:
@@ -111,7 +117,9 @@ func (m *Model) executeKeybinding(key string) tea.Cmd {
 
 			switch data := currRowData.(type) {
 			case *prrow.Data:
-				return m.runCustomBranchCommand(keybinding.Command, data)
+				return m.withForm(keybinding, data, func() tea.Cmd {
+					return m.runCustomBranchCommand(keybinding.Command, data)
+				})
 			}
 		}
 	case config.NotificationsView:
@@ -127,7 +135,9 @@ func (m *Model) executeKeybinding(key string) tea.Cmd {
 				keybinding.Command,
 			)
 			if nData, ok := currRowData.(*notificationrow.Data); ok {
-				return m.runCustomNotificationCommand(keybinding.Command, nData)
+				return m.withForm(keybinding, nData, func() tea.Cmd {
+					return m.runCustomNotificationCommand(keybinding.Command, nData)
+				})
 			}
 		}
 
@@ -145,7 +155,9 @@ func (m *Model) executeKeybinding(key string) tea.Cmd {
 						"command",
 						keybinding.Command,
 					)
-					return m.runCustomNotificationPRCommand(keybinding.Command, nData)
+					return m.withForm(keybinding, nData, func() tea.Cmd {
+						return m.runCustomNotificationPRCommand(keybinding.Command, nData)
+					})
 				}
 			case "Issue":
 				for _, keybinding := range m.ctx.Config.Keybindings.Issues {
@@ -159,7 +171,9 @@ func (m *Model) executeKeybinding(key string) tea.Cmd {
 						"command",
 						keybinding.Command,
 					)
-					return m.runCustomNotificationIssueCommand(keybinding.Command, nData)
+					return m.withForm(keybinding, nData, func() tea.Cmd {
+						return m.runCustomNotificationIssueCommand(keybinding.Command, nData)
+					})
 				}
 			}
 		}
@@ -211,6 +225,9 @@ func resolveTemplateInput(
 // contextData is a map of key-value pairs of data specific to the context the command is being run in.
 func (m *Model) runCustomCommand(commandTemplate string, contextData *map[string]any) tea.Cmd {
 	input := resolveTemplateInput(contextData, m.ctx.Config.RepoPaths, m.ctx.RepoPath)
+	if m.formValues != nil {
+		input["Form"] = m.formValues
+	}
 
 	cmd, err := template.New("keybinding_command").Parse(commandTemplate)
 	if err != nil {

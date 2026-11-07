@@ -267,7 +267,7 @@ func setupConfigEnvVar(t *testing.T) func() {
 	}
 }
 
-func TestKeybindingKeepsFooter(t *testing.T) {
+func TestKeybindingKeepsFooterAndForm(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
 	t.Setenv("GH_DASH_CONFIG", "")
@@ -278,6 +278,12 @@ func TestKeybindingKeepsFooter(t *testing.T) {
       name: review in a worktree
       command: "true"
       footer: true
+      form:
+        title: Review
+        fields:
+          - name: Machine
+            options: [local]
+            optionsCommand: echo a
 `), 0o600)
 	testutils.AssertNoError(t, err)
 
@@ -285,4 +291,8 @@ func TestKeybindingKeepsFooter(t *testing.T) {
 	testutils.AssertNoError(t, err)
 	require.Len(t, parsed.Keybindings.Prs, 1)
 	require.True(t, parsed.Keybindings.Prs[0].Footer)
+	form := parsed.Keybindings.Prs[0].Form
+	require.NotNil(t, form)
+	require.Equal(t, "Review", form.Title)
+	require.Equal(t, []FormField{{Name: "Machine", Options: []string{"local"}, OptionsCommand: "echo a"}}, form.Fields)
 }
