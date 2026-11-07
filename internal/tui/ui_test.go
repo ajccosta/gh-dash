@@ -1532,7 +1532,7 @@ func TestNotificationConfirmation_AcceptWithUpperY(t *testing.T) {
 			Number: 123,
 		},
 	}, "test-notification-id")
-	m.notificationView.SetPendingPRAction("merge")
+	m.notificationView.SetPendingPRAction("close")
 
 	// Press 'Y' to confirm
 	msg := tea.KeyPressMsg{Text: "Y"}

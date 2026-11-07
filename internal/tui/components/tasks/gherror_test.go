@@ -3,7 +3,6 @@ package tasks
 import (
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -78,19 +77,29 @@ func TestApprovePR_Success(t *testing.T) {
 	require.Equal(t, "Approved #4", started.FinishedText)
 }
 
-func TestMergeFinished(t *testing.T) {
-	failed := exec.Command("sh", "-c", "exit 1")
-	err := failed.Run()
-	msg := mergeFinished(SectionIdentifier{}, "merge_4", 4, failed, err,
-		"X Pull request octocat/x#4 is not mergeable: the merge commit cannot be cleanly created.\n")
+func TestMergePR_RunsInBackgroundWithMethod(t *testing.T) {
+	stubGh(t, "X Pull request octocat/x#4 is not mergeable: the merge commit cannot be cleanly created.\n", "1")
+	ctx := &context.ProgramContext{StartTask: func(context.Task) tea.Cmd { return nil }}
+
+	msg := runTask(t, MergePR(ctx, SectionIdentifier{}, mockIssue{number: 4, repoName: "octocat/x"}, "squash", true))
 	require.Equal(t,
 		"Merge #4 failed: X Pull request octocat/x#4 is not mergeable: the merge commit cannot be cleanly created.",
 		msg.Err.Error())
 	require.False(t, *msg.Msg.(UpdatePRMsg).IsMerged)
 
-	ok := exec.Command("sh", "-c", "exit 0")
-	require.NoError(t, ok.Run())
-	msg = mergeFinished(SectionIdentifier{}, "merge_4", 4, ok, nil, "")
+	// gh gets the chosen method and branch deletion, so it asks nothing.
+	if runtime.GOOS == "windows" {
+		t.Skip("shell stub")
+	}
+	dir := t.TempDir()
+	script := "#!/bin/sh\necho \"$*\" >&2\nexit 1\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "gh"), []byte(script), 0o755))
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	msg = runTask(t, MergePR(ctx, SectionIdentifier{}, mockIssue{number: 4, repoName: "octocat/x"}, "squash", true))
+	require.Equal(t, "Merge #4 failed: pr merge 4 -R octocat/x --squash --delete-branch", msg.Err.Error())
+
+	stubGh(t, "", "0")
+	msg = runTask(t, MergePR(ctx, SectionIdentifier{}, mockIssue{number: 4, repoName: "octocat/x"}, "merge", false))
 	require.NoError(t, msg.Err)
 	require.True(t, *msg.Msg.(UpdatePRMsg).IsMerged)
 }

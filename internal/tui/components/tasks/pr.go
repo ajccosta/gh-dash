@@ -3,8 +3,6 @@ package tasks
 import (
 	"bytes"
 	"fmt"
-	"io"
-	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -170,59 +168,33 @@ func PRReady(ctx *context.ProgramContext, section SectionIdentifier, pr data.Row
 	})
 }
 
-func MergePR(ctx *context.ProgramContext, section SectionIdentifier, pr data.RowData) tea.Cmd {
-	prNumber := pr.GetNumber()
-	c := exec.Command(
-		"gh",
-		"pr",
-		"merge",
-		fmt.Sprint(prNumber),
-		"-R",
-		pr.GetRepoNameWithOwner(),
-	)
-	// gh runs in the terminal (it asks for the merge method); keep what it
-	// prints on stderr so a failure can be shown once the dashboard is back.
-	var stderr bytes.Buffer
-	c.Stderr = io.MultiWriter(os.Stderr, &stderr)
-
-	taskId := fmt.Sprintf("merge_%d", prNumber)
-	task := context.Task{
-		Id:           taskId,
-		StartText:    fmt.Sprintf("Merging #%d", prNumber),
-		FinishedText: fmt.Sprintf("Merged #%d", prNumber),
-		State:        context.TaskStart,
-		Error:        nil,
-	}
-	startCmd := ctx.StartTask(task)
-
-	return tea.Batch(startCmd, tea.ExecProcess(c, func(err error) tea.Msg {
-		return mergeFinished(section, taskId, prNumber, c, err, stderr.String())
-	}))
-}
-
-// mergeFinished reports the result of `gh pr merge`, with gh's error message.
-func mergeFinished(
+// MergePR runs `gh pr merge` in the background with the method ("merge",
+// "squash" or "rebase") chosen in the merge dialog.
+func MergePR(
+	ctx *context.ProgramContext,
 	section SectionIdentifier,
-	taskId string,
-	prNumber int,
-	c *exec.Cmd,
-	err error,
-	stderr string,
-) constants.TaskFinishedMsg {
-	if err == nil && c.ProcessState != nil && c.ProcessState.ExitCode() != 0 {
-		err = fmt.Errorf("exit status %d", c.ProcessState.ExitCode())
+	pr data.RowData,
+	method string,
+	deleteBranch bool,
+) tea.Cmd {
+	prNumber := pr.GetNumber()
+	args := []string{"pr", "merge", fmt.Sprint(prNumber), "-R", pr.GetRepoNameWithOwner(), "--" + method}
+	if deleteBranch {
+		args = append(args, "--delete-branch")
 	}
-	isMerged := err == nil
-	return constants.TaskFinishedMsg{
-		SectionId:   section.Id,
-		SectionType: section.Type,
-		TaskId:      taskId,
-		Err:         ghError(err, stderr, fmt.Sprintf("Merge #%d failed", prNumber)),
-		Msg: UpdatePRMsg{
-			PrNumber: prNumber,
-			IsMerged: &isMerged,
+	taskId := buildTaskId("merge", prNumber)
+	return fireTask(ctx, GitHubTask{
+		Id:           taskId,
+		Args:         args,
+		Section:      section,
+		StartText:    fmt.Sprintf("Merging #%d (%s)", prNumber, method),
+		FinishedText: fmt.Sprintf("Merged #%d", prNumber),
+		FailedText:   fmt.Sprintf("Merge #%d failed", prNumber),
+		Msg: func(c *exec.Cmd, err error) tea.Msg {
+			isMerged := err == nil
+			return UpdatePRMsg{PrNumber: prNumber, IsMerged: &isMerged}
 		},
-	}
+	})
 }
 
 func CreatePR(

@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/charmbracelet/x/ansi"
 	"testing"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 
 	"github.com/dlvhdr/gh-dash/v4/internal/config"
 	"github.com/dlvhdr/gh-dash/v4/internal/data"
+	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/dialog"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/footer"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/issueview"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/notificationview"
@@ -50,6 +52,7 @@ func newApproveTestModel(t *testing.T, author string) Model {
 		prView:           prview.NewModel(ctx),
 		sidebar:          sb,
 		footer:           footer.NewModel(ctx),
+		dialog:           dialog.New(ctx),
 		tabs:             tabs.NewModel(ctx),
 		issueSidebar:     issueview.NewModel(ctx),
 		notificationView: notificationview.NewModel(ctx),
@@ -129,7 +132,7 @@ func TestApproveButton_ArrowNavigation(t *testing.T) {
 	require.True(t, m.prView.GetIsApproving(), "enter opens the approval prompt")
 }
 
-func TestMergeButton_ClickAsksForConfirmation(t *testing.T) {
+func TestMergeButton_ClickOpensMergeDialog(t *testing.T) {
 	m := newApproveTestModel(t, "me") // own PR: Merge is shown, Approve is not
 	require.True(t, m.prView.CanMerge())
 	require.False(t, m.prView.CanApprove())
@@ -142,14 +145,23 @@ func TestMergeButton_ClickAsksForConfirmation(t *testing.T) {
 		return !z.IsZero()
 	}, time.Second, 5*time.Millisecond)
 
-	m.Update(tea.MouseClickMsg{X: z.StartX + 1, Y: z.StartY, Button: tea.MouseLeft})
-	require.True(t, m.notificationView.HasPendingAction(), "the click asks before merging")
-	require.Equal(t, "pr_merge", m.notificationView.GetPendingAction())
+	click := tea.MouseClickMsg{X: z.StartX + 1, Y: z.StartY, Button: tea.MouseLeft}
+	m.Update(click)
+	require.True(t, m.dialog.IsOpen(), "the click asks how to merge, in the dashboard")
+	require.Contains(t, ansi.Strip(m.dialog.View()), "Merge #1")
 
-	// Anything but y cancels; nothing runs.
-	_, cmd := m.Update(tea.KeyPressMsg{Code: 'n', Text: "n"})
+	// Esc cancels; nothing runs.
+	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	require.Nil(t, cmd)
-	require.False(t, m.notificationView.HasPendingAction())
+	require.False(t, m.dialog.IsOpen())
+
+	// → picks squash, enter merges (in the background, as a task).
+	m.Update(click)
+	m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	require.Equal(t, "squash", m.dialog.Values()["method"])
+	_, cmd = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	require.NotNil(t, cmd)
+	require.False(t, m.dialog.IsOpen())
 }
 
 func TestMergeButton_ArrowNavigation(t *testing.T) {

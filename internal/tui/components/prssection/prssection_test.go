@@ -49,7 +49,7 @@ func TestConfirmation_EmptyInputDoesNotConfirm(t *testing.T) {
 }
 
 func TestConfirmation_AcceptWithLowercaseY(t *testing.T) {
-	m := newTestModel("merge")
+	m := newTestModel("close")
 	m.PromptConfirmationBox.SetValue("y")
 
 	msg := tea.KeyPressMsg{Code: tea.KeyEnter}
@@ -105,7 +105,7 @@ func TestConfirmation_CancelWithCtrlC(t *testing.T) {
 }
 
 func TestConfirmation_AllActions(t *testing.T) {
-	actions := []string{"close", "reopen", "ready", "merge", "update", "approveWorkflows"}
+	actions := []string{"close", "reopen", "ready", "update", "approveWorkflows"} // merge asks in a dialog
 
 	for _, action := range actions {
 		t.Run(action+"_empty_input_does_not_confirm", func(t *testing.T) {

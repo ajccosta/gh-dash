@@ -27,6 +27,7 @@ import (
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/common"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/branch"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/branchsidebar"
+	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/dialog"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/footer"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/issuessection"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/issueview"
@@ -65,6 +66,7 @@ type Model struct {
 	notificationView  notificationview.Model
 	currSectionId     int
 	footer            footer.Model
+	dialog            dialog.Model // the form drawn over everything (merge, ...)
 	repo              section.Section
 	prs               []section.Section
 	issues            []section.Section
@@ -123,6 +125,7 @@ func NewModel(location config.Location, repos Repositories) Model {
 	}
 
 	m.footer = footer.NewModel(m.ctx)
+	m.dialog = dialog.New(m.ctx)
 	m.prView = prview.NewModel(m.ctx)
 	m.issueSidebar = issueview.NewModel(m.ctx)
 	m.branchSidebar = branchsidebar.NewModel(m.ctx)
@@ -206,6 +209,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		currSection     = m.getCurrSection()
 		currRowData     = m.getCurrRowData()
 	)
+
+	if m.dialog.IsOpen() {
+		switch msg.(type) {
+		case tea.KeyMsg, tea.MouseClickMsg:
+			return m, m.dialog.Update(msg)
+		}
+	}
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -1091,6 +1101,10 @@ func (m *Model) view() tea.View {
 		layers = append(layers, lipgloss.NewLayer(issueCmp).X(previewPos.X+3).Y(y))
 	}
 
+	if m.dialog.IsOpen() {
+		layers = append(layers, m.dialog.Layer())
+	}
+
 	comp := lipgloss.NewCompositor(layers...)
 	v.SetContent(comp.Render())
 
@@ -1328,6 +1342,10 @@ func (m *Model) backToNotification() tea.Cmd {
 }
 
 func (m *Model) promptConfirmation(currSection section.Section, action string) tea.Cmd {
+	if currSection != nil && action == "merge" {
+		sid := tasks.SectionIdentifier{Id: currSection.GetId(), Type: currSection.GetType()}
+		return m.openMergeDialog(sid, m.getCurrRowData())
+	}
 	if currSection != nil {
 		currSection.SetPromptConfirmationAction(action)
 		return currSection.SetIsPromptConfirmationShown(true)
@@ -1851,6 +1869,10 @@ func (m *Model) doUpdateFooterAtInterval() tea.Cmd {
 // when viewing a PR from a notification. This is separate from section-based
 // confirmation because the notification section doesn't know about PR actions.
 func (m *Model) promptConfirmationForNotificationPR(action string) tea.Cmd {
+	if pr := m.notificationView.GetSubjectPR(); pr != nil && action == "merge" {
+		sid := tasks.SectionIdentifier{Id: m.currSectionId, Type: notificationssection.SectionType}
+		return m.openMergeDialog(sid, pr)
+	}
 	prompt := m.notificationView.SetPendingPRAction(action)
 	if prompt == "" {
 		return nil
@@ -1892,10 +1914,6 @@ func (m *Model) executeNotificationAction(action string) tea.Cmd {
 	case "pr_ready":
 		if pr != nil {
 			return tasks.PRReady(m.ctx, sid, pr)
-		}
-	case "pr_merge":
-		if pr != nil {
-			return tasks.MergePR(m.ctx, sid, pr)
 		}
 	case "pr_update":
 		if pr != nil {

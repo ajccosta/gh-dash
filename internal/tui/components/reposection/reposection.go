@@ -121,7 +121,7 @@ func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
 						case "ready":
 							cmd = tasks.PRReady(m.Ctx, sid, pr)
 						case "merge":
-							cmd = tasks.MergePR(m.Ctx, sid, pr)
+							cmd = tasks.MergePR(m.Ctx, sid, pr, "merge", false)
 						case "update":
 							cmd = tasks.UpdatePR(m.Ctx, sid, pr)
 						}
