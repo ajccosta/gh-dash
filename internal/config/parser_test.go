@@ -266,3 +266,23 @@ func setupConfigEnvVar(t *testing.T) func() {
 		os.Unsetenv("GH_DASH_CONFIG")
 	}
 }
+
+func TestKeybindingKeepsFooter(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	t.Setenv("GH_DASH_CONFIG", "")
+	cfgPath := path.Join(dir, "footer.yml")
+	err := os.WriteFile(cfgPath, []byte(`keybindings:
+  prs:
+    - key: T
+      name: review in a worktree
+      command: "true"
+      footer: true
+`), 0o600)
+	testutils.AssertNoError(t, err)
+
+	parsed, err := ParseConfig(Location{ConfigFlag: cfgPath})
+	testutils.AssertNoError(t, err)
+	require.Len(t, parsed.Keybindings.Prs, 1)
+	require.True(t, parsed.Keybindings.Prs[0].Footer)
+}
