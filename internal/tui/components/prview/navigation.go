@@ -42,7 +42,7 @@ func (m *Model) CommitCursor() int {
 }
 
 func (m *Model) IsCommitsTab() bool {
-	return m.carousel.SelectedItem() == tabs[2]
+	return m.carousel.SelectedItem() == "Commits"
 }
 
 func (m *Model) numCommits() int {
@@ -90,8 +90,10 @@ func (m *Model) OpenSelectedCommit() tea.Cmd {
 		cfg.Pager.Diff, cfg.GetFullScreenDiffPagerEnv(), cfg.RepoPaths)
 }
 
+// commitSelected tells whether entry e has the cursor, shown only on the
+// Commits tab (on the Overview ↑/↓ scroll and a click opens an entry).
 func (m *Model) commitSelected(e int) bool {
-	return m.focused && e == m.commitCursor
+	return m.focused && m.IsCommitsTab() && e == m.commitCursor
 }
 
 // TabAt returns the preview tab under the mouse, or -1.
@@ -111,7 +113,7 @@ func markCommit(i int, rendered string) string {
 
 // CommitAt returns the Commits tab entry under the mouse, or -1.
 func (m *Model) CommitAt(msg tea.MouseMsg) int {
-	if zone.DefaultManager == nil || !m.IsCommitsTab() {
+	if zone.DefaultManager == nil || !m.showsSection("Commits") {
 		return -1
 	}
 	for i := range m.numCommitEntries() {

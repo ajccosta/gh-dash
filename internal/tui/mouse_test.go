@@ -45,9 +45,9 @@ func TestMouse_ViewSwitcherAndNewSectionButton(t *testing.T) {
 func TestMouse_PreviewTabs(t *testing.T) {
 	m := newApproveTestModel(t, "other")
 	m.ctx.View = config.PRsView
-	z := scanZone(t, m.prView.View(), "preview-tab-2")
+	z := scanZone(t, m.prView.View(), "preview-tab-1")
 	i := m.prView.TabAt(tea.MouseClickMsg{X: z.StartX, Y: z.StartY, Button: tea.MouseLeft})
-	require.Equal(t, 2, i)
+	require.Equal(t, 1, i)
 	m.prView.SelectTab(i)
 	require.True(t, m.prView.IsCommitsTab())
 }
@@ -65,7 +65,7 @@ func TestMouse_ClicksIgnoredUnlessEnabled(t *testing.T) {
 func TestMouse_CommitsAreClickable(t *testing.T) {
 	m := newApproveTestModel(t, "other")
 	m.ctx.View = config.PRsView
-	m.prView.SelectTab(2)
+	m.prView.SelectTab(1)
 	// Without enriched data there are no commits, so nothing is clickable.
 	require.Equal(t, -1, m.prView.CommitAt(tea.MouseClickMsg{X: 1, Y: 1, Button: tea.MouseLeft}))
 }

@@ -82,7 +82,7 @@ func (m *Model) renderCommits() string {
 	}
 
 	res := heading
-	if m.focused {
+	if m.focused && m.IsCommitsTab() {
 		res = lipgloss.JoinVertical(lipgloss.Left, res,
 			faint.MarginBottom(1).Render("↑/↓ select · enter/d diff · ← tabs, list · esc list"))
 	}

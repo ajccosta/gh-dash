@@ -40,7 +40,51 @@ type Model struct {
 	focusedButton   string // zone id of the button with focus ("arrows" navigation), or ""
 }
 
-var tabs = []string{"Overview", "Activity", "Commits", "Checks", "Files Changed"}
+// A preview tab is a list of sections, drawn one under the other and
+// scrolled as one. A titled section gets an underlined heading. A new
+// section is one entry here.
+type section struct {
+	name   string
+	titled bool
+	render func(*Model) string
+}
+
+var tabDefs = []struct {
+	name     string
+	sections []section
+}{
+	{"Overview", []section{
+		{"Summary", false, (*Model).viewSummarySection},
+		{"Commits", false, (*Model).renderCommits},
+		{"Checks", true, (*Model).renderChecks},
+		{"Files changed", true, (*Model).renderChangedFiles},
+		{"Activity", true, (*Model).renderActivity}, // last: the newest comment is at the bottom
+	}},
+	{"Commits", []section{{"Commits", false, (*Model).renderCommits}}},
+}
+
+var tabs = func() []string {
+	var names []string
+	for _, t := range tabDefs {
+		names = append(names, t.name)
+	}
+	return names
+}()
+
+// showsSection tells whether the shown tab has the section called name.
+func (m *Model) showsSection(name string) bool {
+	for _, t := range tabDefs {
+		if t.name != m.carousel.SelectedItem() {
+			continue
+		}
+		for _, s := range t.sections {
+			if s.name == name {
+				return true
+			}
+		}
+	}
+	return false
+}
 
 func NewModel(ctx *context.ProgramContext) Model {
 	c := carousel.NewModel(
@@ -132,19 +176,24 @@ func (m Model) View() string {
 	}
 
 	body := strings.Builder{}
-	switch m.carousel.SelectedItem() {
-	case tabs[0]:
-		body.WriteString(m.viewOverviewTab())
-	case tabs[1]:
-		body.WriteString(m.renderActivity())
-	case tabs[2]:
-		body.WriteString(m.renderCommits())
-	case tabs[3]:
-		body.WriteString(m.renderChecksOverview())
-		body.WriteString("\n\n")
-		body.WriteString(m.renderChecks())
-	case tabs[4]:
-		body.WriteString(m.renderChangedFiles())
+	for _, t := range tabDefs {
+		if t.name != m.carousel.SelectedItem() {
+			continue
+		}
+		for i, sec := range t.sections {
+			if i > 0 {
+				body.WriteString("\n\n")
+			}
+			if sec.titled {
+				body.WriteString(m.ctx.Styles.Common.MainTextStyle.MarginBottom(1).Underline(true).
+					Render(sec.name))
+				body.WriteString("\n")
+			}
+			body.WriteString(sec.render(&m))
+		}
+	}
+	if m.editor.Mode() != cmpcontroller.ModeNone {
+		body.WriteString(m.ctx.Styles.Sidebar.InputBox.Render(m.editor.View()))
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left,
@@ -175,7 +224,8 @@ func (m *Model) viewHeader() string {
 	return header.String()
 }
 
-func (m *Model) viewOverviewTab() string {
+// viewSummarySection is the reviewers, labels and description.
+func (m *Model) viewSummarySection() string {
 	body := strings.Builder{}
 	reviewers := m.renderRequestedReviewers()
 	if reviewers != "" {
@@ -190,23 +240,6 @@ func (m *Model) viewOverviewTab() string {
 	}
 
 	body.WriteString(m.renderSummary())
-	body.WriteString("\n\n")
-	body.WriteString(
-		m.ctx.Styles.Common.MainTextStyle.MarginBottom(1).Underline(true).Render("Changes"),
-	)
-	body.WriteString("\n")
-	body.WriteString(m.renderChangesOverview())
-	body.WriteString("\n\n")
-	body.WriteString(
-		m.ctx.Styles.Common.MainTextStyle.MarginBottom(1).Underline(true).Render("Checks"),
-	)
-	body.WriteString("\n")
-	body.WriteString(m.renderChecksOverview())
-
-	if m.editor.Mode() != cmpcontroller.ModeNone {
-		body.WriteString(m.ctx.Styles.Sidebar.InputBox.Render(m.editor.View()))
-	}
-
 	return body.String()
 }
 
@@ -764,8 +797,17 @@ func (m *Model) GoToFirstTab() {
 	m.carousel.SetCursor(0)
 }
 
+// GoToActivityTab shows the tab with the Activity, which ends it, so
+// scrolling to the bottom shows the newest comment.
 func (m *Model) GoToActivityTab() {
-	m.carousel.SetCursor(1) // Activity is the second tab (index 1)
+	for i, t := range tabDefs {
+		for _, s := range t.sections {
+			if s.name == "Activity" {
+				m.carousel.SetCursor(i)
+				return
+			}
+		}
+	}
 }
 
 func (m Model) SelectedTab() string {

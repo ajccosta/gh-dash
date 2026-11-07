@@ -32,7 +32,7 @@ func TestCodeLoc_LabelAndGoto(t *testing.T) {
 	require.Equal(t, "GHDIFF_GOTO=a/b.go:RIGHT:7:7", l.GotoEnv())
 }
 
-func TestCodeLoc_ClickableOnActivityTab(t *testing.T) {
+func TestCodeLoc_ClickableInActivity(t *testing.T) {
 	m := newTestModelWithWidth(t, &data.PullRequestData{State: "OPEN", Title: "t", Number: 1}, nil, nil, 100)
 	threads := &m.pr.Data.Enriched.ReviewThreads
 	var node = struct {
@@ -49,7 +49,7 @@ func TestCodeLoc_ClickableOnActivityTab(t *testing.T) {
 	}{Path: "a/b.go", Line: 12, OriginalLine: 12, DiffSide: "RIGHT"}
 	node.Comments.Nodes = []data.ReviewComment{{Body: "hm", DiffHunk: "@@ -10,3 +10,3 @@\n a\n b\n+c"}}
 	threads.Nodes = append(threads.Nodes, node)
-	m.SelectTab(1)
+	m.GoToActivityTab()
 
 	zone.NewGlobal()
 	zone.SetEnabled(true)

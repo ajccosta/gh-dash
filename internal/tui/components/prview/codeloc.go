@@ -88,9 +88,9 @@ func codeLocZone(thread, comment int) string {
 	return codeLocZonePrefix + strconv.Itoa(thread) + "-" + strconv.Itoa(comment)
 }
 
-// CodeLocAt returns the review location under the mouse on the Activity tab.
+// CodeLocAt returns the review location under the mouse in the Activity.
 func (m *Model) CodeLocAt(msg tea.MouseMsg) (CodeLoc, bool) {
-	if zone.DefaultManager == nil || m.carousel.SelectedItem() != tabs[1] {
+	if zone.DefaultManager == nil || !m.showsSection("Activity") {
 		return CodeLoc{}, false
 	}
 	locs := m.reviewLocs()
