@@ -7,7 +7,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/dlvhdr/gh-dash/v4/internal/config"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/common"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/prview"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/tabs"
 )
@@ -245,12 +244,7 @@ func (m *Model) handleArrowNav(msg tea.KeyMsg) (tea.Cmd, bool) {
 			if !m.prView.IsCommitsTab() {
 				return nil, k == "enter"
 			}
-			oid, repo, prNumber := m.prView.SelectedCommit()
-			if oid == "" {
-				return nil, true
-			}
-			return common.DiffCommit(repo, oid, prNumber, m.ctx.Config.Pager.Diff,
-				m.ctx.Config.GetFullScreenDiffPagerEnv(), m.ctx.Config.RepoPaths), true
+			return m.prView.OpenSelectedCommit(), true
 		}
 	}
 

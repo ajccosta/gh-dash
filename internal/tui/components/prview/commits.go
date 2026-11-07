@@ -41,7 +41,7 @@ func (m *Model) renderCommits() string {
 			faint.Render(constants.VerticalCommitIcon),
 			main.Render(commit.MessageHeadline),
 		)
-		if m.commitSelected(i) {
+		if m.commitSelected(i + 1) {
 			left = fmt.Sprintf(
 				"%s %s",
 				m.ctx.Styles.Common.MainTextStyle.Bold(true).Render(CommitCursorMarker),
@@ -78,7 +78,7 @@ func (m *Model) renderCommits() string {
 			faint.Render(" ago"),
 			statsStr,
 		)
-		rendered[i] = markCommit(i, lipgloss.JoinVertical(lipgloss.Left, title, desc))
+		rendered[i] = markCommit(i+1, lipgloss.JoinVertical(lipgloss.Left, title, desc))
 	}
 
 	res := heading
@@ -86,6 +86,13 @@ func (m *Model) renderCommits() string {
 		res = lipgloss.JoinVertical(lipgloss.Left, res,
 			faint.MarginBottom(1).Render("↑/↓ select · enter/d diff · ← tabs, list · esc list"))
 	}
+	all := fmt.Sprintf("%s All commits (%d), one by one in the diff", constants.CommitIcon, len(commits))
+	if m.commitSelected(0) {
+		all = main.Bold(true).Render(CommitCursorMarker) + " " + main.Bold(true).Reverse(true).Render(all)
+	} else {
+		all = lipgloss.NewStyle().Foreground(m.ctx.Theme.SecondaryText).Underline(true).Render(all)
+	}
+	res = lipgloss.JoinVertical(lipgloss.Left, res, markCommit(0, all), "")
 	for i, r := range rendered {
 		res = lipgloss.JoinVertical(lipgloss.Left, res, r)
 		if i < len(rendered)-1 {

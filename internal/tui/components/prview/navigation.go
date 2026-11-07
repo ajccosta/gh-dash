@@ -5,6 +5,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
+
+	"github.com/dlvhdr/gh-dash/v4/internal/tui/common"
 )
 
 // State for the "arrows" preview navigation (defaults.preview.navigation):
@@ -50,9 +52,18 @@ func (m *Model) numCommits() int {
 	return len(m.pr.Data.Enriched.AllCommits.Nodes)
 }
 
-// MoveCommitCursor moves the selected commit by delta, staying in range.
+// The Commits tab's entries: "All commits" (entry 0), then each commit
+// (entry i+1 is commit i).
+func (m *Model) numCommitEntries() int {
+	if n := m.numCommits(); n > 0 {
+		return n + 1
+	}
+	return 0
+}
+
+// MoveCommitCursor moves the selected entry by delta, staying in range.
 func (m *Model) MoveCommitCursor(delta int) {
-	n := m.numCommits()
+	n := m.numCommitEntries()
 	if n == 0 {
 		m.commitCursor = 0
 		return
@@ -60,20 +71,27 @@ func (m *Model) MoveCommitCursor(delta int) {
 	m.commitCursor = min(max(m.commitCursor+delta, 0), n-1)
 }
 
-// SelectedCommit returns the full hash of the selected commit and the
-// repository it belongs to, or empty strings if there is none.
-func (m *Model) SelectedCommit() (oid string, repo string, prNumber int) {
-	n := m.numCommits()
+// OpenSelectedCommit shows the selected entry's diff: a commit's alone, or for
+// "All commits" the PR's in the diff pager with its Commits pane focused
+// (ghdiff steps through them there).
+func (m *Model) OpenSelectedCommit() tea.Cmd {
+	n := m.numCommitEntries()
 	if n == 0 || m.pr.Data.Primary == nil {
-		return "", "", 0
+		return nil
 	}
-	i := min(m.commitCursor, n-1)
-	return m.pr.Data.Enriched.AllCommits.Nodes[i].Commit.Oid,
-		m.pr.Data.Primary.GetRepoNameWithOwner(), m.pr.Data.Primary.GetNumber()
+	cfg := m.ctx.Config
+	repo, prNumber := m.pr.Data.Primary.GetRepoNameWithOwner(), m.pr.Data.Primary.GetNumber()
+	e := min(m.commitCursor, n-1)
+	if e == 0 {
+		return common.DiffPR(prNumber, repo, cfg.GetFullScreenDiffPagerEnv(), cfg.RepoPaths,
+			"GHDIFF_PANE=commits")
+	}
+	return common.DiffCommit(repo, m.pr.Data.Enriched.AllCommits.Nodes[e-1].Commit.Oid, prNumber,
+		cfg.Pager.Diff, cfg.GetFullScreenDiffPagerEnv(), cfg.RepoPaths)
 }
 
-func (m *Model) commitSelected(i int) bool {
-	return m.focused && i == m.commitCursor
+func (m *Model) commitSelected(e int) bool {
+	return m.focused && e == m.commitCursor
 }
 
 // TabAt returns the preview tab under the mouse, or -1.
@@ -91,12 +109,12 @@ func markCommit(i int, rendered string) string {
 	return zone.Mark(commitZonePrefix+strconv.Itoa(i), rendered)
 }
 
-// CommitAt returns the commit under the mouse on the Commits tab, or -1.
+// CommitAt returns the Commits tab entry under the mouse, or -1.
 func (m *Model) CommitAt(msg tea.MouseMsg) int {
 	if zone.DefaultManager == nil || !m.IsCommitsTab() {
 		return -1
 	}
-	for i := range m.numCommits() {
+	for i := range m.numCommitEntries() {
 		if zone.Get(commitZonePrefix + strconv.Itoa(i)).InBounds(msg) {
 			return i
 		}
@@ -104,5 +122,5 @@ func (m *Model) CommitAt(msg tea.MouseMsg) int {
 	return -1
 }
 
-// SelectCommit puts the commit cursor on commit i.
+// SelectCommit puts the cursor on entry i.
 func (m *Model) SelectCommit(i int) { m.MoveCommitCursor(i - m.commitCursor) }
