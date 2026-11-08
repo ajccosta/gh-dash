@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -12,7 +13,8 @@ import (
 )
 
 // openMergeDialog asks how to merge the PR in a dialog over the dashboard,
-// then merges it in the background: gh never takes over the terminal.
+// then merges it in the background: gh never takes over the terminal. Its
+// branch is deleted as B does, moving the PRs based on it first.
 func (m *Model) openMergeDialog(sid tasks.SectionIdentifier, pr data.RowData) tea.Cmd {
 	if pr == nil {
 		return nil
@@ -34,8 +36,21 @@ func (m *Model) openMergeDialog(sid tasks.SectionIdentifier, pr data.RowData) te
 		},
 		Buttons: []string{"Merge", "Cancel"},
 		Submit: func(v map[string]string, _ string) tea.Cmd {
-			return tasks.MergePR(m.ctx, sid, pr, v["method"], v["delete"] == "yes")
+			if v["delete"] == "yes" {
+				return m.planDeleteBranch(sid, pr, v["method"])
+			}
+			return tasks.MergePR(m.ctx, sid, pr, v["method"], nil)
 		},
 	})
 	return nil
+}
+
+// refreshSectionMsg refetches a section whose PRs a merge or a deleted branch
+// changed: the merged PR leaves an open-PR search, the moved ones restack.
+type refreshSectionMsg struct{ sid tasks.SectionIdentifier }
+
+// refreshAfter refetches the section a little later, once GitHub's search
+// has caught up with the change.
+func refreshAfter(sid tasks.SectionIdentifier) tea.Cmd {
+	return tea.Tick(3*time.Second, func(time.Time) tea.Msg { return refreshSectionMsg{sid} })
 }

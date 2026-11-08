@@ -224,6 +224,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.openRemoveCommitDialog(msg)
 	case commitRemovedMsg:
 		return m, m.refreshSection(msg.sid)
+	case refreshSectionMsg:
+		return m, m.refreshSection(msg.sid)
 	}
 	if m.dialog.IsOpen() {
 		switch msg.(type) {
@@ -815,6 +817,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			scmd := m.updateSection(msg.SectionId, msg.SectionType, msg.Msg)
 			cmds = append(cmds, scmd)
+			if u, ok := msg.Msg.(tasks.UpdatePRMsg); ok && msg.Err == nil &&
+				(u.IsMerged != nil && *u.IsMerged || u.BranchDeleted != nil && *u.BranchDeleted) {
+				cmds = append(cmds, refreshAfter(tasks.SectionIdentifier{Id: msg.SectionId, Type: msg.SectionType}))
+			}
 
 			syncCmd := m.syncSidebar()
 			cmds = append(cmds, syncCmd)
@@ -1386,7 +1392,7 @@ func (m *Model) promptConfirmation(currSection section.Section, action string) t
 	}
 	if currSection != nil && action == "deleteBranch" {
 		sid := tasks.SectionIdentifier{Id: currSection.GetId(), Type: currSection.GetType()}
-		return m.planDeleteBranch(sid, m.getCurrRowData())
+		return m.planDeleteBranch(sid, m.getCurrRowData(), "")
 	}
 	if currSection != nil {
 		currSection.SetPromptConfirmationAction(action)
@@ -1917,7 +1923,7 @@ func (m *Model) promptConfirmationForNotificationPR(action string) tea.Cmd {
 	}
 	if pr := m.notificationView.GetSubjectPR(); pr != nil && action == "deleteBranch" {
 		sid := tasks.SectionIdentifier{Id: m.currSectionId, Type: notificationssection.SectionType}
-		return m.planDeleteBranch(sid, pr)
+		return m.planDeleteBranch(sid, pr, "")
 	}
 	prompt := m.notificationView.SetPendingPRAction(action)
 	if prompt == "" {

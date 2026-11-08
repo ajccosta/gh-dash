@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 
@@ -184,75 +185,100 @@ func PRReady(ctx *context.ProgramContext, section SectionIdentifier, pr data.Row
 	})
 }
 
+// BranchDeletion is the head branch of a merged PR to delete, once the open
+// PRs based on it are moved onto Base. GitHub closes those PRs when their
+// base branch goes, so it is never deleted with them still on it (as
+// `gh pr merge --delete-branch` does).
+type BranchDeletion struct {
+	Branch, Base string
+	PRs          []int
+}
+
+// steps moves the PRs, then deletes the branch.
+func (d BranchDeletion) steps(repo string) [][]string {
+	var steps [][]string
+	for _, n := range d.PRs {
+		steps = append(steps, []string{"pr", "edit", fmt.Sprint(n), "-R", repo, "--base", d.Base})
+	}
+	segments := strings.Split(d.Branch, "/")
+	for i, s := range segments {
+		segments[i] = url.PathEscape(s)
+	}
+	return append(steps, []string{"api", "-X", "DELETE",
+		"repos/" + repo + "/git/refs/heads/" + strings.Join(segments, "/")})
+}
+
+// done tells msg whether the branch went, and with it the PRs that moved.
+// On a failure some PRs may have moved already: the next refresh shows them.
+func (d BranchDeletion) done(msg *UpdatePRMsg, repo string, deleted bool) {
+	msg.BranchDeleted = &deleted
+	if deleted {
+		msg.Repo, msg.Rebased = repo, map[int]string{}
+		for _, n := range d.PRs {
+			msg.Rebased[n] = d.Base
+		}
+	}
+}
+
 // MergePR runs `gh pr merge` in the background with the method ("merge",
-// "squash" or "rebase") chosen in the merge dialog.
+// "squash" or "rebase") chosen in the merge dialog, then the branch deletion
+// if one is given.
 func MergePR(
 	ctx *context.ProgramContext,
 	section SectionIdentifier,
 	pr data.RowData,
 	method string,
-	deleteBranch bool,
+	del *BranchDeletion,
 ) tea.Cmd {
 	prNumber := pr.GetNumber()
-	args := []string{"pr", "merge", fmt.Sprint(prNumber), "-R", pr.GetRepoNameWithOwner(), "--" + method}
-	if deleteBranch {
-		args = append(args, "--delete-branch")
-	}
-	taskId := buildTaskId("merge", prNumber)
-	return fireTask(ctx, GitHubTask{
-		Id:           taskId,
+	repo := pr.GetRepoNameWithOwner()
+	args := []string{"pr", "merge", fmt.Sprint(prNumber), "-R", repo, "--" + method}
+	task := GitHubTask{
+		Id:           buildTaskId("merge", prNumber),
 		Args:         args,
 		Section:      section,
 		StartText:    fmt.Sprintf("Merging #%d (%s)", prNumber, method),
 		FinishedText: fmt.Sprintf("Merged #%d", prNumber),
 		FailedText:   fmt.Sprintf("Merge #%d failed", prNumber),
 		Msg: func(c *exec.Cmd, err error) tea.Msg {
-			isMerged := err == nil
-			return UpdatePRMsg{PrNumber: prNumber, IsMerged: &isMerged}
+			isMerged := err == nil || !slices.Equal(c.Args[1:], args)
+			msg := UpdatePRMsg{PrNumber: prNumber, IsMerged: &isMerged}
+			if del != nil && isMerged {
+				del.done(&msg, repo, err == nil)
+			}
+			return msg
 		},
-	})
+	}
+	if del != nil {
+		task.More = del.steps(repo)
+		task.StartText = fmt.Sprintf("Merging #%d (%s), then deleting %s", prNumber, method, del.Branch)
+		task.FinishedText = fmt.Sprintf("Merged #%d and deleted %s", prNumber, del.Branch)
+	}
+	return fireTask(ctx, task)
 }
 
-// DeleteBranch moves each of the open PRs onto base, then deletes branch, the
-// head of the merged PR pr. It stops at the first failure, so the branch stays
-// while a PR still points at it.
+// DeleteBranch deletes the head branch of the merged PR pr, as del says. It
+// stops at the first failure, so the branch stays while a PR still points at it.
 func DeleteBranch(
 	ctx *context.ProgramContext,
 	section SectionIdentifier,
 	pr data.RowData,
-	branch, base string,
-	prs []int,
+	del BranchDeletion,
 ) tea.Cmd {
 	repo := pr.GetRepoNameWithOwner()
-	var steps [][]string
-	for _, n := range prs {
-		steps = append(steps, []string{"pr", "edit", fmt.Sprint(n), "-R", repo, "--base", base})
-	}
-	segments := strings.Split(branch, "/")
-	for i, s := range segments {
-		segments[i] = url.PathEscape(s)
-	}
-	steps = append(steps, []string{"api", "-X", "DELETE",
-		"repos/" + repo + "/git/refs/heads/" + strings.Join(segments, "/")})
+	steps := del.steps(repo)
 	prNumber := pr.GetNumber()
 	return fireTask(ctx, GitHubTask{
 		Id:           buildTaskId("delete_branch", prNumber),
 		Args:         steps[0],
 		More:         steps[1:],
 		Section:      section,
-		StartText:    fmt.Sprintf("Deleting %s", branch),
-		FinishedText: fmt.Sprintf("Deleted %s", branch),
-		FailedText:   fmt.Sprintf("Deleting %s failed", branch),
+		StartText:    fmt.Sprintf("Deleting %s", del.Branch),
+		FinishedText: fmt.Sprintf("Deleted %s", del.Branch),
+		FailedText:   fmt.Sprintf("Deleting %s failed", del.Branch),
 		Msg: func(c *exec.Cmd, err error) tea.Msg {
-			// On a failure some PRs may have moved already: the next refresh shows them.
-			deleted := err == nil
-			msg := UpdatePRMsg{PrNumber: prNumber, BranchDeleted: &deleted}
-			if deleted {
-				msg.Repo, msg.Rebased = repo, map[int]string{}
-				for _, n := range prs {
-					msg.Rebased[n] = base
-				}
-			}
+			msg := UpdatePRMsg{PrNumber: prNumber}
+			del.done(&msg, repo, err == nil)
 			return msg
 		},
 	})

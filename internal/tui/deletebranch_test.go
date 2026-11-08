@@ -76,7 +76,7 @@ func TestDeleteBranch_MovesStackedPRsThenDeletes(t *testing.T) {
 	m.ctx.ScreenWidth, m.ctx.ScreenHeight = 120, 40
 	sid := tasks.SectionIdentifier{Id: 0, Type: "pr"}
 
-	plan := m.planDeleteBranch(sid, mergedPR("feat/x"))().(deleteBranchPlanMsg)
+	plan := m.planDeleteBranch(sid, mergedPR("feat/x"), "")().(deleteBranchPlanMsg)
 	require.NoError(t, plan.err)
 	require.Nil(t, m.openDeleteBranchDialog(plan))
 	view := ansi.Strip(m.dialog.View())
@@ -104,7 +104,8 @@ func TestDeleteBranch_KeepsBranchWhenAPRCannotMove(t *testing.T) {
 	log := stubGh(t, "3")
 	m := newApproveTestModel(t, "other")
 	sid := tasks.SectionIdentifier{Id: 0, Type: "pr"}
-	done := finished(t, tasks.DeleteBranch(m.ctx, sid, mergedPR("feat/x"), "feat/x", "main", []int{2, 3}))
+	done := finished(t, tasks.DeleteBranch(m.ctx, sid, mergedPR("feat/x"),
+		tasks.BranchDeletion{Branch: "feat/x", Base: "main", PRs: []int{2, 3}}))
 	require.ErrorContains(t, done.Err, "cannot edit")
 	calls := ghCalls(t, log)
 	require.Equal(t, "pr edit 3 -R o/r --base main", calls[len(calls)-1], "no delete after it")
@@ -115,7 +116,7 @@ func TestDeleteBranch_NeverTheDefaultBranch(t *testing.T) {
 	log := stubGh(t, "")
 	m := newApproveTestModel(t, "other")
 	sid := tasks.SectionIdentifier{Id: 0, Type: "pr"}
-	plan := m.planDeleteBranch(sid, mergedPR("main"))().(deleteBranchPlanMsg)
+	plan := m.planDeleteBranch(sid, mergedPR("main"), "")().(deleteBranchPlanMsg)
 	err := m.openDeleteBranchDialog(plan)().(constants.ErrMsg).Err
 	require.ErrorContains(t, err, "default branch")
 	require.False(t, m.dialog.IsOpen())
@@ -125,6 +126,31 @@ func TestDeleteBranch_NeverTheDefaultBranch(t *testing.T) {
 
 	open := mergedPR("feat/x")
 	open.Primary.State = "OPEN"
-	err = m.planDeleteBranch(sid, open)().(constants.ErrMsg).Err
+	err = m.planDeleteBranch(sid, open, "")().(constants.ErrMsg).Err
 	require.ErrorContains(t, err, "merged")
+}
+
+func TestMergeDeletingBranch_MovesStackedPRsFirst(t *testing.T) {
+	log := stubGh(t, "")
+	m := newApproveTestModel(t, "other")
+	sid := tasks.SectionIdentifier{Id: 0, Type: "pr"}
+	open := mergedPR("feat/x")
+	open.Primary.State = "OPEN"
+
+	plan := m.planDeleteBranch(sid, open, "squash")().(deleteBranchPlanMsg)
+	cmd := m.openDeleteBranchDialog(plan)
+	require.False(t, m.dialog.IsOpen(), "the merge dialog asked already")
+	done := finished(t, cmd)
+	require.NoError(t, done.Err)
+	require.Equal(t, []string{
+		"pr list -R o/r --base feat/x --state open --json number,title --limit 200",
+		"repo view o/r --json defaultBranchRef --jq .defaultBranchRef.name",
+		"pr merge 1 -R o/r --squash",
+		"pr edit 2 -R o/r --base main",
+		"pr edit 3 -R o/r --base main",
+		"api -X DELETE repos/o/r/git/refs/heads/feat/x",
+	}, ghCalls(t, log))
+	upd := done.Msg.(tasks.UpdatePRMsg)
+	require.True(t, *upd.IsMerged)
+	require.True(t, *upd.BranchDeleted)
 }

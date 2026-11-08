@@ -81,13 +81,14 @@ func TestMergePR_RunsInBackgroundWithMethod(t *testing.T) {
 	stubGh(t, "X Pull request octocat/x#4 is not mergeable: the merge commit cannot be cleanly created.\n", "1")
 	ctx := &context.ProgramContext{StartTask: func(context.Task) tea.Cmd { return nil }}
 
-	msg := runTask(t, MergePR(ctx, SectionIdentifier{}, mockIssue{number: 4, repoName: "octocat/x"}, "squash", true))
+	msg := runTask(t, MergePR(ctx, SectionIdentifier{}, mockIssue{number: 4, repoName: "octocat/x"}, "squash", nil))
 	require.Equal(t,
 		"Merge #4 failed: X Pull request octocat/x#4 is not mergeable: the merge commit cannot be cleanly created.",
 		msg.Err.Error())
 	require.False(t, *msg.Msg.(UpdatePRMsg).IsMerged)
 
-	// gh gets the chosen method and branch deletion, so it asks nothing.
+	// gh gets the chosen method, so it asks nothing; the branch is not left to
+	// gh, which would delete it with PRs still on it.
 	if runtime.GOOS == "windows" {
 		t.Skip("shell stub")
 	}
@@ -95,13 +96,19 @@ func TestMergePR_RunsInBackgroundWithMethod(t *testing.T) {
 	script := "#!/bin/sh\necho \"$*\" >&2\nexit 1\n"
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "gh"), []byte(script), 0o755))
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	msg = runTask(t, MergePR(ctx, SectionIdentifier{}, mockIssue{number: 4, repoName: "octocat/x"}, "squash", true))
-	require.Equal(t, "Merge #4 failed: pr merge 4 -R octocat/x --squash --delete-branch", msg.Err.Error())
+	del := &BranchDeletion{Branch: "feat/x", Base: "main", PRs: []int{5}}
+	msg = runTask(t, MergePR(ctx, SectionIdentifier{}, mockIssue{number: 4, repoName: "octocat/x"}, "squash", del))
+	require.Equal(t, "Merge #4 failed: pr merge 4 -R octocat/x --squash", msg.Err.Error())
+	require.False(t, *msg.Msg.(UpdatePRMsg).IsMerged)
+	require.Nil(t, msg.Msg.(UpdatePRMsg).BranchDeleted)
 
 	stubGh(t, "", "0")
-	msg = runTask(t, MergePR(ctx, SectionIdentifier{}, mockIssue{number: 4, repoName: "octocat/x"}, "merge", false))
+	msg = runTask(t, MergePR(ctx, SectionIdentifier{}, mockIssue{number: 4, repoName: "octocat/x"}, "merge", del))
 	require.NoError(t, msg.Err)
-	require.True(t, *msg.Msg.(UpdatePRMsg).IsMerged)
+	upd := msg.Msg.(UpdatePRMsg)
+	require.True(t, *upd.IsMerged)
+	require.True(t, *upd.BranchDeleted)
+	require.Equal(t, map[int]string{5: "main"}, upd.Rebased)
 }
 
 func TestGhError_NoStderr(t *testing.T) {
