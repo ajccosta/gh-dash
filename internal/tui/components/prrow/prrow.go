@@ -187,13 +187,17 @@ func (pr *PullRequest) renderTitle() string {
 // renderGraph is the PR's piece of the stack graph: its node, in its state's
 // colour (✗ when it conflicts with its base, ○ when it is not in the section),
 // joined to the PR it is based on above and to those based on it below.
-func (pr *PullRequest) renderGraph() string {
+func (pr *PullRequest) renderGraph(isSelected bool) string {
 	lanes := pr.Data.StackLanes
 	if lanes[0] == "" {
 		return ""
 	}
-	faint := lipgloss.NewStyle().Foreground(pr.Ctx.Theme.FaintText)
-	node := lipgloss.NewStyle().Bold(true).Foreground(pr.stateColor())
+	base := lipgloss.NewStyle()
+	if isSelected {
+		base = base.Background(pr.Ctx.Theme.SelectedBackground)
+	}
+	faint := base.Foreground(pr.Ctx.Theme.FaintText)
+	node := base.Bold(true).Foreground(pr.stateColor())
 	glyph := "●"
 	switch {
 	case pr.Data.Extra:
@@ -201,11 +205,13 @@ func (pr *PullRequest) renderGraph() string {
 	case pr.Data.Primary.Mergeable == "CONFLICTING":
 		glyph, node = "✗", node.Foreground(pr.Ctx.Theme.ErrorText)
 	}
+	// The last line goes on the separator under the row, unselected.
+	below := lipgloss.NewStyle().Foreground(pr.Ctx.Theme.FaintText).Render(lanes[1])
 	line := faint.Render(lanes[0]) + node.Render(glyph)
 	if pr.Ctx.Config.Theme.Ui.Table.Compact {
-		return line
+		return line + "\n" + below
 	}
-	return line + "\n" + faint.Render(lanes[1])
+	return line + "\n" + faint.Render(lanes[1]) + "\n" + below
 }
 
 func (pr *PullRequest) renderExtendedTitle(isSelected bool) string {
@@ -414,7 +420,7 @@ func (pr *PullRequest) RenderMergeStateStatus() string {
 func (pr *PullRequest) ToTableRow(isSelected bool) table.Row {
 	if !pr.Ctx.Config.Theme.Ui.Table.Compact {
 		return table.Row{
-			pr.renderGraph(),
+			pr.renderGraph(isSelected),
 			pr.renderState(),
 			pr.renderExtendedTitle(isSelected),
 			pr.renderLabels(isSelected),
@@ -430,7 +436,7 @@ func (pr *PullRequest) ToTableRow(isSelected bool) table.Row {
 	}
 
 	return table.Row{
-		pr.renderGraph(),
+		pr.renderGraph(isSelected),
 		pr.renderState(),
 		pr.renderRepoName(),
 		pr.renderTitle(),

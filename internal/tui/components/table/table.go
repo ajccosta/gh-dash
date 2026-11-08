@@ -357,6 +357,10 @@ func (m *Model) renderRow(rowId int, headerColumns []string) string {
 	}
 
 	renderedColumns := make([]string, 0, len(m.Columns))
+	// A cell's line past the row's height is drawn on the separator under
+	// the row, in place of the rule there (the stack graph's lanes go on).
+	separators := make([]string, 0, len(m.Columns))
+	hasSeparator := false
 	headerColId := 0
 
 	for i, column := range m.Columns {
@@ -373,6 +377,14 @@ func (m *Model) renderRow(rowId int, headerColumns []string) string {
 			colHeight = 2
 		}
 		col := m.Rows[rowId][i]
+		separator := strings.Repeat("─", colWidth)
+		if lines := strings.Split(col, "\n"); len(lines) > colHeight {
+			col = strings.Join(lines[:colHeight], "\n")
+			separator = m.ctx.Styles.Table.CellStyle.Width(colWidth).MaxWidth(colWidth).
+				Render(lines[colHeight])
+			hasSeparator = true
+		}
+		separators = append(separators, separator)
 		// For multi-line content, truncate long lines and pad short lines
 		// so lines don't wrap and background color extends properly
 		// Account for cell padding (1 left + 1 right = 2)
@@ -411,10 +423,15 @@ func (m *Model) renderRow(rowId int, headerColumns []string) string {
 		headerColId++
 	}
 
+	showSeparator := m.ctx.Config.Theme.Ui.Table.ShowSeparator
 	row := m.ctx.Styles.Table.RowStyle.
-		BorderBottom(m.ctx.Config.Theme.Ui.Table.ShowSeparator).
+		BorderBottom(showSeparator && !hasSeparator).
 		MaxWidth(m.dimensions.Width).
 		Render(lipgloss.JoinHorizontal(lipgloss.Top, renderedColumns...))
+	if showSeparator && hasSeparator {
+		rule := lipgloss.NewStyle().Foreground(m.ctx.Theme.FaintBorder)
+		row += "\n" + rule.MaxWidth(m.dimensions.Width).Render(strings.Join(separators, ""))
+	}
 	if zone.DefaultManager == nil { // not set up (tests)
 		return row
 	}
