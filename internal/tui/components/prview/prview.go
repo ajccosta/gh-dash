@@ -41,8 +41,8 @@ type Model struct {
 }
 
 // A preview tab is a list of sections, drawn one under the other and
-// scrolled as one. A titled section gets an underlined heading. A new
-// section is one entry here.
+// scrolled as one. A titled section gets an underlined heading; one with
+// nothing to show is left out. A new section is one entry here.
 type section struct {
 	name   string
 	titled bool
@@ -56,6 +56,7 @@ var tabDefs = []struct {
 	{"Overview", []section{
 		{"Summary", false, (*Model).viewSummarySection},
 		{"Commits", false, (*Model).renderCommits},
+		{"Conflicts", true, (*Model).renderConflicts},
 		{"Checks", true, (*Model).renderChecks},
 		{"Files changed", true, (*Model).renderChangedFiles},
 		{"Activity", true, (*Model).renderActivity}, // last: the newest comment is at the bottom
@@ -180,16 +181,22 @@ func (m Model) View() string {
 		if t.name != m.carousel.SelectedItem() {
 			continue
 		}
-		for i, sec := range t.sections {
-			if i > 0 {
+		shown := 0
+		for _, sec := range t.sections {
+			content := sec.render(&m)
+			if content == "" {
+				continue
+			}
+			if shown > 0 {
 				body.WriteString("\n\n")
 			}
+			shown++
 			if sec.titled {
 				body.WriteString(m.ctx.Styles.Common.MainTextStyle.MarginBottom(1).Underline(true).
 					Render(sec.name))
 				body.WriteString("\n")
 			}
-			body.WriteString(sec.render(&m))
+			body.WriteString(content)
 		}
 	}
 	if m.editor.Mode() != cmpcontroller.ModeNone {

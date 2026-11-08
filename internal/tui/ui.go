@@ -826,12 +826,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, syncCmd)
 		}
 
+	case prview.ConflictsMsg:
+		cmds = append(cmds, m.syncSidebar())
+
 	case prview.EnrichedPrMsg:
 		if msg.Err == nil {
 			m.prView.SetEnrichedPR(msg.Data)
 			m.prs[msg.Id].(*prssection.Model).EnrichPR(msg.Data)
 			syncCmd := m.syncSidebar()
 			cmds = append(cmds, syncCmd)
+			cmds = append(cmds, m.prView.FindConflicts()) // GitHub may know only now
 		} else {
 			log.Error("failed enriching pr", "err", msg.Err)
 		}
@@ -1208,7 +1212,7 @@ func (m *Model) onViewedRowChanged() tea.Cmd {
 	m.sidebar.ScrollToTop()
 	m.notificationView.ResetSubject()
 	keys.SetNotificationSubject(keys.NotificationSubjectNone)
-	return tea.Batch(sidebarCmd, enrichCmd)
+	return tea.Batch(sidebarCmd, enrichCmd, m.prView.FindConflicts())
 }
 
 func (m *Model) onWindowSizeChanged(msg tea.WindowSizeMsg) {
