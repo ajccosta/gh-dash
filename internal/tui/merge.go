@@ -45,7 +45,8 @@ func (m *Model) openMergeDialog(sid tasks.SectionIdentifier, pr data.RowData) te
 			{Name: "method", Title: "Method", Options: []string{"merge", "squash", "rebase"}},
 			{Name: "delete", Title: "Delete branch", Options: []string{"no", "yes"}},
 		},
-		Buttons: []string{"Merge", "Cancel"},
+		Buttons:  []string{"Merge", "Cancel"},
+		Remember: "merge",
 		Submit: func(v map[string]string, _ string) tea.Cmd {
 			merge := func() tea.Cmd {
 				if v["delete"] == "yes" {

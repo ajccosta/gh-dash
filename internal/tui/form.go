@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
-	"slices"
 	"strings"
 	"time"
 
@@ -12,7 +11,6 @@ import (
 	log "charm.land/log/v2"
 
 	"github.com/dlvhdr/gh-dash/v4/internal/config"
-	"github.com/dlvhdr/gh-dash/v4/internal/data"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/dialog"
 )
 
@@ -28,8 +26,6 @@ func (m *Model) withForm(kb config.Keybinding, row any, run func() tea.Cmd) tea.
 	if title == "" {
 		title = kb.Name
 	}
-	store := kb.Key + " " + title
-	last := data.GetFormChoices(store)
 	fields := make([]dialog.Field, 0, len(kb.Form.Fields))
 	for _, f := range kb.Form.Fields {
 		opts := append([]string{}, f.Options...)
@@ -43,8 +39,7 @@ func (m *Model) withForm(kb config.Keybinding, row any, run func() tea.Cmd) tea.
 		if label == "" {
 			label = f.Name
 		}
-		sel := max(0, slices.Index(opts, last[f.Name]))
-		fields = append(fields, dialog.Field{Name: f.Name, Title: label, Options: opts, Sel: sel})
+		fields = append(fields, dialog.Field{Name: f.Name, Title: label, Options: opts})
 	}
 	var text []string
 	if r, ok := row.(interface {
@@ -54,12 +49,12 @@ func (m *Model) withForm(kb config.Keybinding, row any, run func() tea.Cmd) tea.
 		text = append(text, fmt.Sprintf("#%d %s", r.GetNumber(), r.GetTitle()))
 	}
 	m.dialog.Open(dialog.Spec{
-		Title:   title,
-		Text:    text,
-		Fields:  fields,
-		Buttons: []string{"Run", "Cancel"},
+		Title:    title,
+		Text:     text,
+		Fields:   fields,
+		Buttons:  []string{"Run", "Cancel"},
+		Remember: kb.Key + " " + title,
 		Submit: func(values map[string]string, _ string) tea.Cmd {
-			data.SetFormChoices(store, values)
 			m.formValues = values
 			if kb.Form.Progress {
 				m.formProgress = &startProgressMsg{title: title, text: text}

@@ -6,6 +6,7 @@ package dialog
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -13,6 +14,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	zone "github.com/lrstanley/bubblezone/v2"
 
+	"github.com/dlvhdr/gh-dash/v4/internal/data"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/context"
 )
 
@@ -25,13 +27,16 @@ type Field struct {
 }
 
 // Spec describes a dialog. Submit gets each field's chosen option by name
-// and the pressed button; the last button cancels and calls nothing.
+// and the pressed button; the last button cancels and calls nothing. A dialog
+// with a Remember key starts each field at the option chosen last time it was
+// submitted, kept in $XDG_STATE_HOME/gh-dash/forms.json under that key.
 type Spec struct {
-	Title   string
-	Text    []string
-	Fields  []Field
-	Buttons []string
-	Submit  func(values map[string]string, button string) tea.Cmd
+	Title    string
+	Text     []string
+	Fields   []Field
+	Buttons  []string
+	Submit   func(values map[string]string, button string) tea.Cmd
+	Remember string
 }
 
 type Model struct {
@@ -65,6 +70,15 @@ type question struct {
 func New(ctx *context.ProgramContext) Model { return Model{ctx: ctx} }
 
 func (m *Model) Open(spec Spec) {
+	if spec.Remember != "" {
+		last := data.GetFormChoices(spec.Remember)
+		spec.Fields = slices.Clone(spec.Fields)
+		for i, f := range spec.Fields {
+			if o := slices.Index(f.Options, last[f.Name]); o >= 0 {
+				spec.Fields[i].Sel = o
+			}
+		}
+	}
 	m.spec, m.row, m.btn, m.prog = &spec, 0, 0, nil
 }
 
@@ -137,6 +151,9 @@ func (m *Model) press(b int) tea.Cmd {
 	m.Close()
 	if b == len(spec.Buttons)-1 || spec.Submit == nil {
 		return nil
+	}
+	if spec.Remember != "" {
+		data.SetFormChoices(spec.Remember, values)
 	}
 	return spec.Submit(values, spec.Buttons[b])
 }

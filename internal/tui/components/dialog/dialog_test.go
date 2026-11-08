@@ -77,3 +77,30 @@ func TestDialog_LongOptionRowScrolls(t *testing.T) {
 		require.LessOrEqual(t, ansi.StringWidth(l), 100)
 	}
 }
+
+func TestDialog_RemembersChoices(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	zone.NewGlobal()
+	m := New(&context.ProgramContext{ScreenWidth: 100, ScreenHeight: 30, Theme: *theme.DefaultTheme})
+	open := func() {
+		m.Open(Spec{
+			Title:    "Pick",
+			Fields:   []Field{{Name: "a", Title: "A", Options: []string{"x", "y"}}},
+			Buttons:  []string{"Go", "Cancel"},
+			Submit:   func(map[string]string, string) tea.Cmd { return nil },
+			Remember: "dialog test",
+		})
+	}
+	open()
+	m.Update(tea.KeyPressMsg{Code: tea.KeyRight}) // y
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	open()
+	require.Equal(t, "y", m.Values()["a"], "starts at the last choice")
+
+	m.Update(tea.KeyPressMsg{Code: tea.KeyRight}) // x, then cancel
+	m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	open()
+	require.Equal(t, "y", m.Values()["a"], "a cancelled dialog is not remembered")
+}
