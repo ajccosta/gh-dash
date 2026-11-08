@@ -75,7 +75,7 @@ func (m *Model) setPane(p pane) {
 		m.sidebar.ScrollToTop()
 	}
 	m.syncSidebar()
-	m.ensureCommitCursorVisible()
+	m.ensureCursorVisible()
 }
 
 // handleArrowNav returns handled=false for keys it leaves to the normal flow.
@@ -215,7 +215,7 @@ func (m *Model) handleArrowNav(msg tea.KeyMsg) (tea.Cmd, bool) {
 				return nil, true
 			}
 			m.syncSidebar()
-			m.ensureCommitCursorVisible()
+			m.ensureCursorVisible()
 			return nil, true
 
 		case "up", "down":
@@ -223,14 +223,14 @@ func (m *Model) handleArrowNav(msg tea.KeyMsg) (tea.Cmd, bool) {
 			if k == "up" {
 				delta = -1
 			}
-			if m.prView.IsCommitsTab() {
-				if k == "up" && m.prView.CommitCursor() == 0 {
+			if m.prView.HasCursor() {
+				if k == "up" && m.prView.Cursor() == 0 {
 					m.setPane(m.paneAbovePreview())
 					return nil, true
 				}
-				m.prView.MoveCommitCursor(delta)
+				m.prView.MoveCursor(delta)
 				m.syncSidebar()
-				m.ensureCommitCursorVisible()
+				m.ensureCursorVisible()
 			} else {
 				if k == "up" && m.sidebar.YOffset() == 0 {
 					m.setPane(m.paneAbovePreview())
@@ -241,10 +241,10 @@ func (m *Model) handleArrowNav(msg tea.KeyMsg) (tea.Cmd, bool) {
 			return nil, true
 
 		case "enter", "d":
-			if !m.prView.IsCommitsTab() {
+			if !m.prView.HasCursor() {
 				return nil, k == "enter"
 			}
-			return m.prView.OpenSelectedCommit(), true
+			return m.prView.OpenSelected(), true
 		}
 	}
 
@@ -284,13 +284,13 @@ func (m *Model) pressButton(id string) tea.Cmd {
 	return nil
 }
 
-// ensureCommitCursorVisible scrolls the preview to the selected commit.
-func (m *Model) ensureCommitCursorVisible() {
-	if m.pane != panePreview || !m.prView.IsCommitsTab() {
+// ensureCursorVisible scrolls the preview to the selected entry.
+func (m *Model) ensureCursorVisible() {
+	if m.pane != panePreview || !m.prView.HasCursor() {
 		return
 	}
 	for i, line := range strings.Split(m.prView.View(), "\n") {
-		if strings.Contains(line, prview.CommitCursorMarker) {
+		if strings.Contains(line, prview.CursorMarker) {
 			m.sidebar.EnsureLineVisible(i)
 			return
 		}

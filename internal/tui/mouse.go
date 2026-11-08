@@ -54,9 +54,8 @@ func (m *Model) handleMouseClick(msg tea.MouseClickMsg) (bool, tea.Cmd) {
 			return true, common.DiffPR(pr.GetNumber(), pr.GetRepoNameWithOwner(),
 				m.ctx.Config.GetFullScreenDiffPagerEnv(), m.ctx.Config.RepoPaths, loc.GotoEnv())
 		}
-		if i := m.prView.CommitAt(msg); i >= 0 {
-			m.prView.SelectCommit(i)
-			return true, m.prView.OpenSelectedCommit()
+		if cmd, ok := m.prView.OpenAt(msg); ok {
+			return true, cmd
 		}
 	}
 	if s := m.getCurrSection(); s != nil && s.SearchAt(msg) {

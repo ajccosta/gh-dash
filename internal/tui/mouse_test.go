@@ -49,7 +49,7 @@ func TestMouse_PreviewTabs(t *testing.T) {
 	i := m.prView.TabAt(tea.MouseClickMsg{X: z.StartX, Y: z.StartY, Button: tea.MouseLeft})
 	require.Equal(t, 1, i)
 	m.prView.SelectTab(i)
-	require.True(t, m.prView.IsCommitsTab())
+	require.Equal(t, "Commits", m.prView.SelectedTab())
 }
 
 func TestMouse_ClicksIgnoredUnlessEnabled(t *testing.T) {
@@ -67,5 +67,6 @@ func TestMouse_CommitsAreClickable(t *testing.T) {
 	m.ctx.View = config.PRsView
 	m.prView.SelectTab(1)
 	// Without enriched data there are no commits, so nothing is clickable.
-	require.Equal(t, -1, m.prView.CommitAt(tea.MouseClickMsg{X: 1, Y: 1, Button: tea.MouseLeft}))
+	_, ok := m.prView.OpenAt(tea.MouseClickMsg{X: 1, Y: 1, Button: tea.MouseLeft})
+	require.False(t, ok)
 }

@@ -11,10 +11,10 @@ import (
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/constants"
 )
 
-// ghdiffEnv tells ghdiff which PR it shows and where the repo is cloned
-// (from repoPaths), so it can ask Claude about the diff and post to the PR.
-// Other pagers ignore these.
-func ghdiffEnv(env []string, repoName string, prNumber int, repoPaths map[string]string) []string {
+// GhdiffEnv tells ghdiff which PR it shows (none: prNumber 0) and where the
+// repo is cloned (from repoPaths), so it can ask Claude about the diff and
+// post to the PR. Other pagers ignore these.
+func GhdiffEnv(env []string, repoName string, prNumber int, repoPaths map[string]string) []string {
 	env = append(env, "GHDIFF_REPO="+repoName)
 	if prNumber > 0 {
 		env = append(env, fmt.Sprintf("GHDIFF_PR=%d", prNumber))
@@ -40,7 +40,7 @@ func DiffPR(prNumber int, repoName string, env []string, repoPaths map[string]st
 		repoName,
 	)
 	// GHDIFF_TITLE names the diff in ghdiff's title bar; other pagers ignore it.
-	c.Env = append(ghdiffEnv(env, repoName, prNumber, repoPaths),
+	c.Env = append(GhdiffEnv(env, repoName, prNumber, repoPaths),
 		fmt.Sprintf("GHDIFF_TITLE=%s#%d", repoName, prNumber))
 	c.Env = append(c.Env, extraEnv...)
 
@@ -53,10 +53,8 @@ func DiffPR(prNumber int, repoName string, env []string, repoPaths map[string]st
 }
 
 // DiffCommit shows a single commit's diff in the configured pager. The diff is
-// fetched with `gh api`, so no local clone is needed. Pagers that colour diffs
-// themselves (delta, diff-so-fancy, ...) get it raw; for less, lines are
-// coloured here first. The env parameter is Config.GetFullScreenDiffPagerEnv();
-// prNumber is the PR the commit belongs to.
+// fetched with `gh api`, so no local clone is needed. The env parameter is
+// Config.GetFullScreenDiffPagerEnv(); prNumber is the PR the commit belongs to.
 func DiffCommit(repoName string, oid string, prNumber int, pager string, env []string,
 	repoPaths map[string]string,
 ) tea.Cmd {
@@ -72,39 +70,47 @@ func DiffCommit(repoName string, oid string, prNumber int, pager string, env []s
 			return constants.ErrMsg{Err: fmt.Errorf("fetching commit %s: %w", oid, err)}
 		}
 
-		if pager == "" {
-			pager = "less"
-		}
-		if strings.HasPrefix(pager, "less") {
-			out = colorDiff(out)
-		}
-		if pager == "delta" {
-			pager = "delta --paging always"
-		}
+		return PageDiff(out, pager, GhdiffEnv(env, repoName, prNumber, repoPaths),
+			fmt.Sprintf("GHDIFF_TITLE=%s @ %s", repoName, oid[:min(7, len(oid))]),
+			"GHDIFF_COMMIT="+oid)
+	}
+}
 
-		f, err := os.CreateTemp("", "gh-dash-commit-*.diff")
+// PageDiff shows diff in pager (less by default), with env and extraEnv; it
+// blocks, so it runs in a background command, whose message it returns.
+// Pagers that colour diffs themselves (delta, diff-so-fancy, ...) get it raw;
+// for less, lines are coloured here first.
+func PageDiff(diff []byte, pager string, env []string, extraEnv ...string) tea.Msg {
+	if pager == "" {
+		pager = "less"
+	}
+	if strings.HasPrefix(pager, "less") {
+		diff = colorDiff(diff)
+	}
+	if pager == "delta" {
+		pager = "delta --paging always"
+	}
+
+	f, err := os.CreateTemp("", "gh-dash-*.diff")
+	if err != nil {
+		return constants.ErrMsg{Err: err}
+	}
+	_, werr := f.Write(diff)
+	f.Close()
+	if werr != nil {
+		os.Remove(f.Name())
+		return constants.ErrMsg{Err: werr}
+	}
+
+	c := exec.Command("sh", "-c", pager+` < "$1"`, "sh", f.Name())
+	c.Env = append(env, extraEnv...)
+	return tea.ExecProcess(c, func(err error) tea.Msg {
+		os.Remove(f.Name())
 		if err != nil {
 			return constants.ErrMsg{Err: err}
 		}
-		_, werr := f.Write(out)
-		f.Close()
-		if werr != nil {
-			os.Remove(f.Name())
-			return constants.ErrMsg{Err: werr}
-		}
-
-		c := exec.Command("sh", "-c", pager+` < "$1"`, "sh", f.Name())
-		c.Env = append(ghdiffEnv(env, repoName, prNumber, repoPaths),
-			fmt.Sprintf("GHDIFF_TITLE=%s @ %s", repoName, oid[:min(7, len(oid))]),
-			"GHDIFF_COMMIT="+oid)
-		return tea.ExecProcess(c, func(err error) tea.Msg {
-			os.Remove(f.Name())
-			if err != nil {
-				return constants.ErrMsg{Err: err}
-			}
-			return nil
-		})()
-	}
+		return nil
+	})()
 }
 
 // colorDiff adds the usual ANSI colours to a unified diff.

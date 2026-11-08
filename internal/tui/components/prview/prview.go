@@ -36,7 +36,8 @@ type Model struct {
 	editor          cmpcontroller.Controller
 	summaryViewMore bool
 	focused         bool   // preview has focus ("arrows" navigation)
-	commitCursor    int    // selected commit on the Commits tab
+	cursor          int    // selected entry of cursorTab
+	cursorTab       string // the tab the cursor was last moved on
 	focusedButton   string // zone id of the button with focus ("arrows" navigation), or ""
 }
 
@@ -62,6 +63,7 @@ var tabDefs = []struct {
 		{"Activity", true, (*Model).renderActivity}, // last: the newest comment is at the bottom
 	}},
 	{"Commits", []section{{"Commits", false, (*Model).renderCommits}}},
+	{"Conflicts", []section{{"Conflicts", false, (*Model).renderConflictsTab}}},
 }
 
 var tabs = func() []string {
@@ -604,7 +606,7 @@ func (m *Model) SetSectionId(id int) {
 func (m *Model) SetRow(d *prrow.Data) {
 	if d == nil || m.pr == nil || m.pr.Data.Primary == nil || d.Primary == nil ||
 		d.Primary.Url != m.pr.Data.Primary.Url {
-		m.commitCursor = 0 // a different PR: start again from its first commit
+		m.cursor = 0 // a different PR: start again from its first entry
 	}
 	if d == nil {
 		m.pr = nil

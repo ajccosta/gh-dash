@@ -44,9 +44,14 @@ func TestConflictingFiles(t *testing.T) {
 	conflictsRemote = func(string) string { return remote }
 	t.Cleanup(func() { conflictsRemote = func(repo string) string { return "https://github.com/" + repo + ".git" } })
 
-	files, err := conflictingFiles(clone, "o/r", 1, "main")
+	res, err := conflictingFiles(clone, "o/r", 1, "main")
 	require.NoError(t, err)
-	require.Equal(t, []string{"a.txt"}, files)
+	require.Equal(t, []string{"a.txt"}, res.files)
+
+	diff, err := runGit(clone, "diff", "--no-color", res.base, res.tree, "--", "a.txt")
+	require.NoError(t, err)
+	require.Contains(t, diff, "+<<<<<<< gh-dash/1/main\n main\n+=======\n+pr\n+>>>>>>> gh-dash/1/pr-1",
+		"the base against the merge, its sides named")
 
 	out, err := exec.Command("git", "-C", clone, "for-each-ref", "refs/gh-dash").Output()
 	require.NoError(t, err)
