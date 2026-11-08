@@ -44,7 +44,7 @@ func DiffPR(prNumber int, repoName string, env []string, repoPaths map[string]st
 		fmt.Sprintf("GHDIFF_TITLE=%s#%d", repoName, prNumber))
 	c.Env = append(c.Env, extraEnv...)
 
-	return tea.ExecProcess(c, func(err error) tea.Msg {
+	return ExecCovered(c, "Opening the diff…", func(err error) tea.Msg {
 		if err != nil {
 			return constants.ErrMsg{Err: err}
 		}
@@ -104,7 +104,7 @@ func PageDiff(diff []byte, pager string, env []string, extraEnv ...string) tea.M
 
 	c := exec.Command("sh", "-c", pager+` < "$1"`, "sh", f.Name())
 	c.Env = append(env, extraEnv...)
-	return tea.ExecProcess(c, func(err error) tea.Msg {
+	return ExecCovered(c, "Opening the diff…", func(err error) tea.Msg {
 		os.Remove(f.Name())
 		if err != nil {
 			return constants.ErrMsg{Err: err}
