@@ -224,8 +224,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.openRemoveCommitDialog(msg)
 	case commitRemovedMsg:
 		return m, m.refreshSection(msg.sid)
-	case refreshSectionMsg:
-		return m, m.refreshSection(msg.sid)
 	}
 	if m.dialog.IsOpen() {
 		switch msg.(type) {
@@ -820,10 +818,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			scmd := m.updateSection(msg.SectionId, msg.SectionType, msg.Msg)
 			cmds = append(cmds, scmd)
-			if u, ok := msg.Msg.(tasks.UpdatePRMsg); ok && msg.Err == nil &&
-				(u.IsMerged != nil && *u.IsMerged || u.BranchDeleted != nil && *u.BranchDeleted) {
-				cmds = append(cmds, refreshAfter(tasks.SectionIdentifier{Id: msg.SectionId, Type: msg.SectionType}))
-			}
 
 			syncCmd := m.syncSidebar()
 			cmds = append(cmds, syncCmd)

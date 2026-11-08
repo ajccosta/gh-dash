@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -64,14 +63,4 @@ func (m *Model) openMergeDialog(sid tasks.SectionIdentifier, pr data.RowData) te
 		},
 	})
 	return nil
-}
-
-// refreshSectionMsg refetches a section whose PRs a merge or a deleted branch
-// changed: the merged PR leaves an open-PR search, the moved ones restack.
-type refreshSectionMsg struct{ sid tasks.SectionIdentifier }
-
-// refreshAfter refetches the section a little later, once GitHub's search
-// has caught up with the change.
-func refreshAfter(sid tasks.SectionIdentifier) tea.Cmd {
-	return tea.Tick(3*time.Second, func(time.Time) tea.Msg { return refreshSectionMsg{sid} })
 }
