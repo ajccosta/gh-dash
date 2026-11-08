@@ -32,7 +32,7 @@ func (m *Model) MergeBlockedReason() string {
 }
 
 // CanMerge reports whether the merge button is shown: on open, non-draft PRs,
-// your own included. A blocked merge is still shown (dimmed), as admins can
+// your own included. A blocked merge is still shown (amber, ⚠), as admins can
 // bypass the rules and gh says why it fails.
 func (m *Model) CanMerge() bool {
 	if !m.hasData() || m.pr.Data.Primary == nil {
@@ -49,8 +49,13 @@ func (m *Model) renderMergeButton() string {
 	style := lipgloss.NewStyle().Bold(true)
 	label := " ⇣ Merge "
 	if reason := m.MergeBlockedReason(); reason != "" {
-		label = " Merge (" + reason + ") "
-		style = style.Bold(false).Foreground(m.ctx.Theme.FaintText)
+		if _, ok := m.BaseMerge(); ok {
+			reason += ", git can merge"
+		}
+		label = " ⚠ Merge (" + reason + ") "
+		style = style.
+			Background(m.ctx.Theme.WarningText).
+			Foreground(lipgloss.ANSIColor(0))
 	} else {
 		style = style.
 			Background(m.ctx.Styles.Colors.MergedPR.Dark).
