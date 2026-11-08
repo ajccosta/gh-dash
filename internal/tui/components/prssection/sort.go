@@ -141,7 +141,7 @@ func (m *Model) SortBy(key string) tea.Cmd {
 		return tea.Batch(m.FetchNextPageSectionRows()...)
 	}
 	m.sortPrs()
-	return nil
+	return m.fetchStackParents()
 }
 
 // sortId names the section in the saved sorts.
@@ -161,9 +161,10 @@ func (m *Model) loadSort() {
 func (m *Model) sortPrs() {
 	s := prSorts[m.sort]
 	for i := range m.Prs {
-		m.Prs[i].Stacked, m.Prs[i].StackDepth = false, 0
+		m.Prs[i].StackLanes = [2]string{}
 	}
 	if s.cmp == nil && s.arrange == nil {
+		m.syncStackColumn()
 		m.Table.SetRows(m.BuildRows())
 		return
 	}
@@ -184,6 +185,7 @@ func (m *Model) sortPrs() {
 			return s.cmp(a.Primary, b.Primary)
 		})
 	}
+	m.syncStackColumn()
 	m.Table.SetRows(m.BuildRows())
 	for i, pr := range m.Prs {
 		if sel != nil && pr.Primary == sel {

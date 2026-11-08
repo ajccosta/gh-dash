@@ -177,23 +177,35 @@ func keepSameSpacesOnAddDeletions(str string) string {
 
 func (pr *PullRequest) renderTitle() string {
 	// The number is in the state column.
-	return components.GetIssueTextStyle(pr.Ctx).Bold(true).Render(pr.stackPrefix() + pr.Data.Primary.Title)
+	style := components.GetIssueTextStyle(pr.Ctx).Bold(true)
+	if pr.Data.Extra {
+		style = style.Foreground(pr.Ctx.Theme.FaintText)
+	}
+	return style.Render(pr.Data.Primary.Title)
 }
 
-// stackPrefix indents a PR under the one it is based on, in stack order,
-// and marks those in conflict with their base.
-func (pr *PullRequest) stackPrefix() string {
-	if !pr.Data.Stacked {
+// renderGraph is the PR's piece of the stack graph: its node, in its state's
+// colour (✗ when it conflicts with its base, ○ when it is not in the section),
+// joined to the PR it is based on above and to those based on it below.
+func (pr *PullRequest) renderGraph() string {
+	lanes := pr.Data.StackLanes
+	if lanes[0] == "" {
 		return ""
 	}
-	var s string
-	if d := pr.Data.StackDepth; d > 0 {
-		s = strings.Repeat("  ", d-1) + "└ "
+	faint := lipgloss.NewStyle().Foreground(pr.Ctx.Theme.FaintText)
+	node := lipgloss.NewStyle().Bold(true).Foreground(pr.stateColor())
+	glyph := "●"
+	switch {
+	case pr.Data.Extra:
+		glyph, node = "○", faint
+	case pr.Data.Primary.Mergeable == "CONFLICTING":
+		glyph, node = "✗", node.Foreground(pr.Ctx.Theme.ErrorText)
 	}
-	if pr.Data.Primary.Mergeable == "CONFLICTING" {
-		s += "✗ "
+	line := faint.Render(lanes[0]) + node.Render(glyph)
+	if pr.Ctx.Config.Theme.Ui.Table.Compact {
+		return line
 	}
-	return s
+	return line + "\n" + faint.Render(lanes[1])
 }
 
 func (pr *PullRequest) renderExtendedTitle(isSelected bool) string {
@@ -212,7 +224,11 @@ func (pr *PullRequest) renderExtendedTitle(isSelected bool) string {
 		branch := baseStyle.Render(pr.Data.Primary.HeadRefName)
 		top = lipgloss.JoinHorizontal(lipgloss.Top, top, baseStyle.Render(" · "), branch)
 	}
-	title := pr.stackPrefix() + pr.Data.Primary.Title
+	title := pr.Data.Primary.Title
+	titleColor := pr.Ctx.Theme.PrimaryText
+	if pr.Data.Extra {
+		titleColor = pr.Ctx.Theme.FaintText
+	}
 	var titleColumn table.Column
 	for _, column := range pr.Columns {
 		if column.Grow != nil && *column.Grow {
@@ -226,7 +242,7 @@ func (pr *PullRequest) renderExtendedTitle(isSelected bool) string {
 		Height(1).
 		MaxHeight(1).
 		Render(top)
-	title = baseStyle.Foreground(pr.Ctx.Theme.PrimaryText).Bold(true).Width(width).MaxWidth(
+	title = baseStyle.Foreground(titleColor).Bold(true).Width(width).MaxWidth(
 		width).Height(1).MaxHeight(1).Render(title)
 
 	return baseStyle.Render(lipgloss.JoinVertical(lipgloss.Left, top, title))
@@ -398,6 +414,7 @@ func (pr *PullRequest) RenderMergeStateStatus() string {
 func (pr *PullRequest) ToTableRow(isSelected bool) table.Row {
 	if !pr.Ctx.Config.Theme.Ui.Table.Compact {
 		return table.Row{
+			pr.renderGraph(),
 			pr.renderState(),
 			pr.renderExtendedTitle(isSelected),
 			pr.renderLabels(isSelected),
@@ -413,6 +430,7 @@ func (pr *PullRequest) ToTableRow(isSelected bool) table.Row {
 	}
 
 	return table.Row{
+		pr.renderGraph(),
 		pr.renderState(),
 		pr.renderRepoName(),
 		pr.renderTitle(),

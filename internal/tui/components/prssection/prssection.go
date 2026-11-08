@@ -213,9 +213,14 @@ func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
 			break
 		}
 
+	case stackParentsMsg:
+		m.addStackParents(msg)
+
 	case SectionPullRequestsFetchedMsg:
 		if m.LastFetch.TaskId == msg.TaskId {
 			if m.PageInfo != nil {
+				// The page may have PRs shown only as stacked on: fetched again after.
+				m.Prs = slices.DeleteFunc(m.Prs, func(pr prrow.Data) bool { return pr.Extra })
 				m.Prs = append(m.Prs, msg.Prs...)
 			} else {
 				m.Prs = msg.Prs
@@ -224,6 +229,7 @@ func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
 			m.PageInfo = &msg.PageInfo
 			m.SetIsLoading(false)
 			m.sortPrs()
+			cmd = m.fetchStackParents()
 			m.Table.SetRows(m.BuildRows())
 			m.Table.SetLastUpdated(time.Now())
 			m.UpdateTotalItemsCount(m.TotalCount)
@@ -291,6 +297,7 @@ func GetSectionColumns(
 	linesLayout := config.MergeColumnConfigs(dLayout.Lines, sLayout.Lines)
 
 	cols := []table.Column{
+		stackColumn(),
 		{
 			Title:  "",
 			Width:  utils.IntPtr(6), // the PR number, "#1234"
@@ -355,18 +362,19 @@ func GetSectionColumns(
 	// compact adds the repo and the author, around the title
 	return append([]table.Column{
 		cols[0],
+		cols[1],
 		sortable(ctx, table.Column{
 			Title:  "Repo",
 			Width:  repoLayout.Width,
 			Hidden: repoLayout.Hidden,
 		}, "repo", "Repo"),
-		cols[1],
+		cols[2],
 		sortable(ctx, table.Column{
 			Title:  "Author",
 			Width:  authorLayout.Width,
 			Hidden: authorLayout.Hidden,
 		}, "author", "Author"),
-	}, cols[2:]...)
+	}, cols[3:]...)
 }
 
 func (m *Model) BuildRows() []table.Row {
