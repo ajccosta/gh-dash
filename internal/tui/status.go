@@ -55,10 +55,33 @@ func (m *Model) showStatusError(id, text string) tea.Cmd {
 	return clearTaskAfter(id, taskErrorShownFor)
 }
 
+// showStatus shows text as a finished task in the footer.
+func (m *Model) showStatus(id, text string) tea.Cmd {
+	now := time.Now()
+	m.tasks[id] = context.Task{
+		Id:           id,
+		State:        context.TaskFinished,
+		FinishedText: text,
+		StartTime:    now,
+		FinishedTime: &now,
+	}
+	m.refreshTaskStatus()
+	return clearTaskAfter(id, taskSuccessShownFor)
+}
+
 // approvePRKey handles the Approve key (v): it opens the approval prompt,
-// except on your own PR, which GitHub refuses to approve.
+// except on your own PR, which GitHub refuses to approve: that one it
+// approves here only, or takes that back.
 func (m *Model) approvePRKey() tea.Cmd {
 	if m.prView.IsOwnPR() {
+		if said := m.prView.ToggleLocalApproval(); said != "" {
+			for _, s := range m.getCurrentViewSections() {
+				if r, ok := s.(interface{ RebuildRows() }); ok {
+					r.RebuildRows()
+				}
+			}
+			return tea.Batch(m.syncSidebar(), m.showStatus("approve_local", said))
+		}
 		return m.showStatusError("approve_own",
 			fmt.Sprintf("Can't approve your own PR #%d", m.prView.PRNumber()))
 	}

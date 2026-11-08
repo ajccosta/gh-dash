@@ -53,6 +53,7 @@ type EnrichedPullRequestData struct {
 		Name string
 	}
 	IsCrossRepository  bool      // the head branch is in a fork
+	HeadRefOid         string    // the head commit
 	Labels             PRLabels  `graphql:"labels(first: 6)"`
 	Assignees          Assignees `graphql:"assignees(first: 3)"`
 	Repository         Repository
@@ -90,7 +91,8 @@ type PullRequestData struct {
 	HeadRef struct {
 		Name string
 	}
-	IsCrossRepository bool // the head branch is in a fork
+	IsCrossRepository bool   // the head branch is in a fork
+	HeadRefOid        string // the head commit
 	Repository        Repository
 	Assignees         Assignees            `graphql:"assignees(first: 3)"`
 	Comments          Comments             `graphql:"comments"`
@@ -474,6 +476,7 @@ func (e EnrichedPullRequestData) ToPullRequestData() PullRequestData {
 		HeadRepository:    e.HeadRepository,
 		HeadRef:           e.HeadRef,
 		IsCrossRepository: e.IsCrossRepository,
+		HeadRefOid:        e.HeadRefOid,
 		Repository:        e.Repository,
 		Assignees:         e.Assignees,
 		IsDraft:           e.IsDraft,

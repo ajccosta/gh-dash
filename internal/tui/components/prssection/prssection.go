@@ -597,3 +597,9 @@ func (m Model) GetPagerContent() string {
 func (m *Model) ConfigGetter() config.SectionConfig {
 	return m.cfg.ToSectionConfig()
 }
+
+// RebuildRows redraws the rows from the PRs, as when something kept outside
+// them (a local approval) changed.
+func (m *Model) RebuildRows() {
+	m.Table.SetRows(m.BuildRows())
+}

@@ -270,7 +270,7 @@ func (m *Model) pressButton(id string) tea.Cmd {
 		return nil
 	}
 	if action == "approve" {
-		return m.openSidebarForPRInput(m.prView.SetIsApproving)
+		return m.approvePRKey()
 	}
 	if m.ctx.View == config.PRsView {
 		if m.getCurrRowData() == nil {

@@ -98,3 +98,27 @@ func TestApproveHiddenOnOwnPR(t *testing.T) {
 		})
 	}
 }
+
+func TestApproveOwnPRLocally(t *testing.T) {
+	pr := &data.PullRequestData{State: "OPEN", Title: "t", Number: 7, HeadRefOid: "aaa"}
+	pr.Author.Login = "me"
+	pr.Repository.NameWithOwner = "o/local"
+	m := newTestModelWithWidth(t, pr, nil, nil, 80)
+	m.ctx.User = "me"
+	require.Equal(t, approveLocal, m.approveState())
+	require.True(t, m.CanApprove())
+	require.Contains(t, m.renderApproveButton(), "✓ Approve here")
+
+	require.Contains(t, m.ToggleLocalApproval(), "#7 approved")
+	require.True(t, pr.IsLocallyApproved())
+	require.Equal(t, approvedLocal, m.approveState())
+	require.Contains(t, m.renderApproveButton(), "Approved here · undo")
+
+	pr.HeadRefOid = "bbb" // new commits: needs another look
+	require.False(t, pr.IsLocallyApproved())
+	require.Contains(t, m.renderApproveButton(), "Approve here again (new commits)")
+
+	require.Contains(t, m.ToggleLocalApproval(), "#7 approved")
+	require.Contains(t, m.ToggleLocalApproval(), "no longer approved")
+	require.Equal(t, "", data.LocalApproval("o/local", 7))
+}

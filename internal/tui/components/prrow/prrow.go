@@ -47,7 +47,7 @@ func (pr *PullRequest) renderReviewStatus() string {
 		return "-"
 	}
 	reviewCellStyle := pr.getTextStyle()
-	if pr.Data.Primary.ReviewDecision == "APPROVED" {
+	if pr.Data.Primary.ReviewDecision == "APPROVED" || pr.Data.Primary.IsLocallyApproved() {
 		reviewCellStyle = reviewCellStyle.Foreground(
 			pr.Ctx.Theme.SuccessText,
 		)
@@ -69,7 +69,7 @@ func (pr *PullRequest) renderReviewStatus() string {
 }
 
 // renderState shows the PR's number in the colour of its state (open, draft,
-// queued, merged, closed), in place of a state icon.
+// queued, merged, closed, or open and approved here), in place of a state icon.
 func (pr *PullRequest) renderState() string {
 	style := lipgloss.NewStyle().Bold(true)
 	if pr.Data.Primary == nil {
@@ -86,6 +86,9 @@ func (pr *PullRequest) stateColor() compat.AdaptiveColor {
 		}
 		if pr.Data.Primary.IsDraft {
 			return pr.Ctx.Theme.FaintText
+		}
+		if pr.Data.Primary.IsLocallyApproved() {
+			return pr.Ctx.Theme.SuccessText
 		}
 		return pr.Ctx.Styles.Colors.OpenPR
 	case "CLOSED":
@@ -180,6 +183,8 @@ func (pr *PullRequest) renderTitle() string {
 	style := components.GetIssueTextStyle(pr.Ctx).Bold(true)
 	if pr.Data.Extra {
 		style = style.Foreground(pr.Ctx.Theme.FaintText)
+	} else if pr.Data.Primary.IsLocallyApproved() {
+		style = style.Foreground(pr.Ctx.Theme.SuccessText)
 	}
 	return style.Render(pr.Data.Primary.Title)
 }
@@ -234,6 +239,8 @@ func (pr *PullRequest) renderExtendedTitle(isSelected bool) string {
 	titleColor := pr.Ctx.Theme.PrimaryText
 	if pr.Data.Extra {
 		titleColor = pr.Ctx.Theme.FaintText
+	} else if pr.Data.Primary.IsLocallyApproved() {
+		titleColor = pr.Ctx.Theme.SuccessText
 	}
 	var titleColumn table.Column
 	for _, column := range pr.Columns {
