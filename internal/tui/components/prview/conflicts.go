@@ -179,8 +179,9 @@ func (m *Model) numConflictEntries() int {
 }
 
 // openConflict shows entry e in the diff pager: the base against the merge,
-// for that file or all of them. ghdiff is not told the PR, as the lines of the
-// merge are not the PR's to comment on.
+// for that file or all of them. ghdiff opens side by side, each conflict's
+// current version beside its incoming one; it is not told the PR, as the
+// lines of the merge are not the PR's to comment on.
 func (m *Model) openConflict(e int) tea.Cmd {
 	c, _ := m.shownConflicts()
 	if e > len(c.files) {
@@ -194,13 +195,38 @@ func (m *Model) openConflict(e int) tea.Cmd {
 	repo := p.Repository.NameWithOwner
 	title := fmt.Sprintf("GHDIFF_TITLE=%s#%d: conflicts with %s", repo, p.Number, p.BaseRefName)
 	return func() tea.Msg {
-		out, err := runGit(c.dir, append([]string{"diff", "--no-color", c.base, c.tree, "--"}, files...)...)
+		ctx := 3
+		for _, f := range files {
+			ctx = max(ctx, longestConflict(c.dir, c.tree+":"+f))
+		}
+		out, err := runGit(c.dir, append([]string{"diff", "--no-color", fmt.Sprintf("-U%d", ctx),
+			c.base, c.tree, "--"}, files...)...)
 		if err != nil {
 			return constants.ErrMsg{Err: err}
 		}
 		return common.PageDiff([]byte(out), cfg.Pager.Diff,
-			common.GhdiffEnv(cfg.GetFullScreenDiffPagerEnv(), repo, 0, cfg.RepoPaths), title)
+			common.GhdiffEnv(cfg.GetFullScreenDiffPagerEnv(), repo, 0, cfg.RepoPaths), title, "GHDIFF_SPLIT=1")
 	}
+}
+
+// longestConflict is how many lines the longest conflict in the blob has.
+// The diff gets as many lines of context, so that each conflict is one hunk:
+// its current side is unchanged lines, which would split a hunk otherwise.
+func longestConflict(dir, blob string) int {
+	text, err := runGit(dir, "cat-file", "-p", blob)
+	if err != nil {
+		return 0
+	}
+	longest, start := 0, -1
+	for i, l := range strings.Split(text, "\n") {
+		switch {
+		case strings.HasPrefix(l, "<<<<<<< "):
+			start = i
+		case strings.HasPrefix(l, ">>>>>>> ") && start >= 0:
+			longest, start = max(longest, i-start+1), -1
+		}
+	}
+	return longest
 }
 
 // renderConflicts is the Overview's Conflicts section, while GitHub says the

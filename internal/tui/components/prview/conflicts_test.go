@@ -52,6 +52,7 @@ func TestConflictingFiles(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, diff, "+<<<<<<< gh-dash/1/main\n main\n+=======\n+pr\n+>>>>>>> gh-dash/1/pr-1",
 		"the base against the merge, its sides named")
+	require.Equal(t, 5, longestConflict(clone, res.tree+":a.txt"))
 
 	out, err := exec.Command("git", "-C", clone, "for-each-ref", "refs/gh-dash").Output()
 	require.NoError(t, err)
