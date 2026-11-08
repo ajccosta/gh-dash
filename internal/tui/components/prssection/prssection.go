@@ -216,8 +216,12 @@ func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
 	case stackParentsMsg:
 		m.addStackParents(msg)
 
+	case mergeableMsg:
+		m.setMergeable(msg)
+
 	case SectionPullRequestsFetchedMsg:
 		if m.LastFetch.TaskId == msg.TaskId {
+			mergeableCmd := m.keepMergeable(msg.Prs)
 			if m.PageInfo != nil {
 				// The page may have PRs shown only as stacked on: fetched again after.
 				m.Prs = slices.DeleteFunc(m.Prs, func(pr prrow.Data) bool { return pr.Extra })
@@ -229,7 +233,7 @@ func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
 			m.PageInfo = &msg.PageInfo
 			m.SetIsLoading(false)
 			m.sortPrs()
-			cmd = m.fetchStackParents()
+			cmd = tea.Batch(m.fetchStackParents(), mergeableCmd)
 			m.Table.SetRows(m.BuildRows())
 			m.Table.SetLastUpdated(time.Now())
 			m.UpdateTotalItemsCount(m.TotalCount)
