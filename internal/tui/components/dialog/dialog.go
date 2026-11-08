@@ -1,6 +1,7 @@
 // Package dialog is a small form drawn in the middle of the screen: a title,
 // a few lines of text, rows of choices and a row of buttons. Merging a PR and
-// the custom keybindings that declare a form use it.
+// the custom keybindings that declare a form use it. It can also show a
+// command's progress as a bar (OpenProgress).
 package dialog
 
 import (
@@ -9,6 +10,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/context"
@@ -37,16 +39,63 @@ type Model struct {
 	spec *Spec
 	row  int // the focused field; len(Fields) is the buttons row
 	btn  int
+	prog *progress
+}
+
+// progress is a running command's: how far, its current step, and once it
+// failed, what it said. Its one button cancels it, or closes once it failed.
+type progress struct {
+	pct    int
+	step   string
+	failed []string
+	cancel func()
 }
 
 func New(ctx *context.ProgramContext) Model { return Model{ctx: ctx} }
 
 func (m *Model) Open(spec Spec) {
-	m.spec, m.row, m.btn = &spec, 0, 0
+	m.spec, m.row, m.btn, m.prog = &spec, 0, 0, nil
 }
 
-func (m *Model) Close()      { m.spec = nil }
+func (m *Model) Close()      { m.spec, m.prog = nil, nil }
 func (m Model) IsOpen() bool { return m.spec != nil }
+
+// OpenProgress shows a bar under title and text until Close; cancel runs if
+// the user stops it first.
+func (m *Model) OpenProgress(title string, text []string, cancel func()) {
+	m.Open(Spec{Title: title, Text: text, Buttons: []string{"Cancel"}})
+	m.prog = &progress{cancel: cancel}
+}
+
+func (m Model) InProgress() bool { return m.prog != nil }
+
+// SetProgress moves the bar to pct (kept when negative) and shows step.
+func (m *Model) SetProgress(pct int, step string) {
+	if m.prog == nil {
+		return
+	}
+	if pct >= 0 {
+		m.prog.pct = min(100, pct)
+	}
+	m.prog.step = step
+}
+
+// FailProgress shows what the command said instead of the bar.
+func (m *Model) FailProgress(lines []string) {
+	if m.prog == nil {
+		return
+	}
+	m.prog.failed, m.prog.cancel = append([]string{"Failed:"}, lines...), nil
+	m.spec.Buttons = []string{"Close"}
+}
+
+// stop cancels a running command, if it still runs, and closes the dialog.
+func (m *Model) stop() {
+	if m.prog.cancel != nil {
+		m.prog.cancel()
+	}
+	m.Close()
+}
 func (m Model) Values() map[string]string {
 	v := map[string]string{}
 	for _, f := range m.spec.Fields {
@@ -68,6 +117,22 @@ func (m *Model) press(b int) tea.Cmd {
 // Update takes every key and click while the dialog is open.
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	if m.spec == nil {
+		return nil
+	}
+	if m.prog != nil {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch msg.String() {
+			case "esc", "q", "ctrl+c", "enter":
+				m.stop()
+			}
+		case tea.MouseClickMsg:
+			x, y := m.offset()
+			msg.X, msg.Y = msg.X-x, msg.Y-y
+			if zone.Get(buttonZone(0)).InBounds(msg) {
+				m.stop()
+			}
+		}
 		return nil
 	}
 	rows := len(m.spec.Fields) + 1
@@ -143,6 +208,9 @@ func (m Model) View() string {
 		lines = append(lines, faint.Render(s))
 	}
 	lines = append(lines, "")
+	if m.prog != nil {
+		lines = append(lines, m.progressLines()...)
+	}
 	for fi, f := range m.spec.Fields {
 		label := fmt.Sprintf("%-*s", titleW, f.Title)
 		if fi == m.row {
@@ -190,13 +258,42 @@ func (m Model) View() string {
 		row = append(row, btn)
 	}
 	lines = append(lines, lipgloss.JoinHorizontal(lipgloss.Top, row...))
-	lines = append(lines, faint.Render("↑↓ move · ←→ choose · enter confirm · esc cancel"))
+	switch {
+	case m.prog != nil && m.prog.failed != nil:
+		lines = append(lines, faint.Render("enter or esc close"))
+	case m.prog != nil:
+		lines = append(lines, faint.Render("esc cancel"))
+	default:
+		lines = append(lines, faint.Render("↑↓ move · ←→ choose · enter confirm · esc cancel"))
+	}
 
 	return lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(t.PrimaryBorder).
 		Padding(1, 3).
 		Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
+}
+
+// progressBarWidth is the bar's length in cells.
+const progressBarWidth = 44
+
+// progressLines is the step and the bar, or what a failed command said.
+func (m Model) progressLines() []string {
+	t := m.ctx.Theme
+	faint := lipgloss.NewStyle().Foreground(t.FaintText)
+	if m.prog.failed != nil {
+		red := lipgloss.NewStyle().Foreground(t.ErrorText)
+		var lines []string
+		for _, l := range m.prog.failed {
+			lines = append(lines, red.Render(ansi.Truncate(l, progressBarWidth+20, "…")))
+		}
+		return append(lines, "")
+	}
+	done := progressBarWidth * m.prog.pct / 100
+	bar := lipgloss.NewStyle().Foreground(t.SuccessText).Render(strings.Repeat("━", done)) +
+		faint.Render(strings.Repeat("━", progressBarWidth-done)) +
+		fmt.Sprintf(" %3d%%", m.prog.pct)
+	return []string{faint.Render(ansi.Truncate(m.prog.step, progressBarWidth+5, "…")), bar, ""}
 }
 
 // visibleOptions is the run of options shown when they don't all fit in

@@ -55,7 +55,10 @@ func (m *Model) withForm(kb config.Keybinding, row any, run func() tea.Cmd) tea.
 		Buttons: []string{"Run", "Cancel"},
 		Submit: func(values map[string]string, _ string) tea.Cmd {
 			m.formValues = values
-			defer func() { m.formValues = nil }()
+			if kb.Form.Progress {
+				m.formProgress = &startProgressMsg{title: title, text: text}
+			}
+			defer func() { m.formValues, m.formProgress = nil, nil }()
 			return run()
 		},
 	})

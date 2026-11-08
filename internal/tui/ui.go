@@ -68,6 +68,8 @@ type Model struct {
 	footer            footer.Model
 	dialog            dialog.Model      // the form drawn over everything (merge, ...)
 	formValues        map[string]string // a keybinding form's choices, while its command is made (form.go)
+	formProgress      *startProgressMsg // set while a progress: form's command is made (progress.go)
+	progressRun       *progressRun      // the command the dialog's bar is for
 	repo              section.Section
 	prs               []section.Section
 	issues            []section.Section
@@ -211,6 +213,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		currRowData     = m.getCurrRowData()
 	)
 
+	if cmd, ok := m.updateProgress(msg); ok {
+		return m, cmd
+	}
 	if m.dialog.IsOpen() {
 		switch msg.(type) {
 		case tea.KeyMsg, tea.MouseClickMsg:

@@ -340,6 +340,11 @@ type execProcessFinishedMsg struct{}
 
 func (m *Model) executeCustomCommand(cmd string) tea.Cmd {
 	log.Debug("executing custom command", "cmd", cmd)
+	if p := m.formProgress; p != nil {
+		start := *p
+		start.command = cmd
+		return func() tea.Msg { return start }
+	}
 	c := shell.Command(cmd)
 	return tea.ExecProcess(c, func(err error) tea.Msg {
 		if err != nil {

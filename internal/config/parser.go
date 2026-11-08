@@ -223,6 +223,10 @@ type Keybinding struct {
 type KeybindingForm struct {
 	Title  string      `yaml:"title,omitempty"`
 	Fields []FormField `yaml:"fields"`
+	// Progress runs the command in the background, the dialog showing a bar
+	// it moves by printing "progress PCT TEXT" lines; a "run COMMAND" line
+	// is run in the terminal once it is done. Its other output shows if it fails.
+	Progress bool `yaml:"progress,omitempty"`
 }
 
 // FormField is one row of choices. OptionsCommand adds the lines it prints
