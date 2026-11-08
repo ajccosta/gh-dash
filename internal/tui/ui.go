@@ -219,6 +219,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if plan, ok := msg.(deleteBranchPlanMsg); ok {
 		return m, m.openDeleteBranchDialog(plan)
 	}
+	switch msg := msg.(type) {
+	case removeCommitPlanMsg:
+		return m, m.openRemoveCommitDialog(msg)
+	case commitRemovedMsg:
+		return m, m.refreshSection(msg.sid)
+	}
 	if m.dialog.IsOpen() {
 		switch msg.(type) {
 		case tea.KeyMsg, tea.MouseClickMsg:
@@ -507,6 +513,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case key.Matches(msg, keys.PRKeys.DeleteBranch):
 				if currRowData != nil {
 					cmd = m.promptConfirmation(currSection, "deleteBranch")
+				}
+				return m, cmd
+
+			case key.Matches(msg, keys.PRKeys.RemoveCommit):
+				if oid, headline, ok := m.prView.SelectedCommit(); ok && currSection != nil {
+					sid := tasks.SectionIdentifier{Id: currSection.GetId(), Type: currSection.GetType()}
+					cmd = m.planRemoveCommit(sid, currRowData, oid, headline)
 				}
 				return m, cmd
 

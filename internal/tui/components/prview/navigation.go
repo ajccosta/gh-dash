@@ -124,5 +124,15 @@ func (m *Model) CommitAt(msg tea.MouseMsg) int {
 	return -1
 }
 
+// SelectedCommit is the commit with the cursor on the focused Commits tab:
+// its oid and headline, or ok false ("All commits", or no cursor shown).
+func (m *Model) SelectedCommit() (oid, headline string, ok bool) {
+	if m.commitCursor == 0 || m.commitCursor > m.numCommits() || !m.commitSelected(m.commitCursor) {
+		return "", "", false
+	}
+	c := m.pr.Data.Enriched.AllCommits.Nodes[m.commitCursor-1].Commit
+	return c.Oid, c.MessageHeadline, true
+}
+
 // SelectCommit puts the cursor on entry i.
 func (m *Model) SelectCommit(i int) { m.MoveCommitCursor(i - m.commitCursor) }
