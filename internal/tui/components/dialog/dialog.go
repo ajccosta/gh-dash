@@ -18,12 +18,66 @@ import (
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/context"
 )
 
-// Field is one row of choices; Sel is the chosen option.
+// Field is one row of choices; Sel is the chosen option. An Input field is
+// typed instead: Options are its suggestions, the one picked (Sel, among those
+// that match Text) shown grey after Text, and tab completes it. Left empty,
+// its value is the first option.
 type Field struct {
 	Name    string // the key of its value in what Submit gets
 	Title   string
 	Options []string
 	Sel     int
+	Input   bool
+	Text    string
+	fresh   bool // Text is the starting value: typing replaces it
+}
+
+// suggestions are the options an input field's Text could become: those that
+// start with it, then those that contain it (ignoring case). A fresh field
+// suggests every other option.
+func (f Field) suggestions() []int {
+	var starts, contains []int
+	t := strings.ToLower(f.Text)
+	for i, o := range f.Options {
+		lo := strings.ToLower(o)
+		switch {
+		case o == f.Text || o == "":
+		case f.fresh || strings.HasPrefix(lo, t):
+			starts = append(starts, i)
+		case strings.Contains(lo, t):
+			contains = append(contains, i)
+		}
+	}
+	return append(starts, contains...)
+}
+
+// suggestion is the picked suggestion's option index, or -1.
+func (f Field) suggestion() int {
+	s := f.suggestions()
+	if len(s) == 0 {
+		return -1
+	}
+	return s[min(f.Sel, len(s)-1)]
+}
+
+// ghost is what tab adds to Text: the rest of the picked suggestion, when it
+// starts with Text.
+func (f Field) ghost() string {
+	i := f.suggestion()
+	if i < 0 || f.fresh || !strings.HasPrefix(strings.ToLower(f.Options[i]), strings.ToLower(f.Text)) {
+		return ""
+	}
+	return f.Options[i][len(f.Text):]
+}
+
+func (f Field) value() string {
+	if !f.Input {
+		return f.Options[f.Sel]
+	}
+	if t := strings.TrimSpace(f.Text); t != "" || len(f.Options) == 0 {
+		return t
+	}
+	return f.Options[0] // left empty
 }
 
 // Spec describes a dialog. Submit gets each field's chosen option by name
@@ -70,13 +124,23 @@ type question struct {
 func New(ctx *context.ProgramContext) Model { return Model{ctx: ctx} }
 
 func (m *Model) Open(spec Spec) {
+	var last map[string]string
 	if spec.Remember != "" {
-		last := data.GetFormChoices(spec.Remember)
-		spec.Fields = slices.Clone(spec.Fields)
-		for i, f := range spec.Fields {
-			if o := slices.Index(f.Options, last[f.Name]); o >= 0 {
-				spec.Fields[i].Sel = o
-			}
+		last = data.GetFormChoices(spec.Remember)
+	}
+	spec.Fields = slices.Clone(spec.Fields)
+	for i := range spec.Fields {
+		f := &spec.Fields[i]
+		switch {
+		case f.Input && last[f.Name] != "":
+			f.Text = last[f.Name]
+		case f.Input && f.Text == "" && len(f.Options) > 0:
+			f.Text = f.Options[f.Sel]
+		}
+		if f.Input {
+			f.Sel, f.fresh = 0, f.Text != ""
+		} else if o := slices.Index(f.Options, last[f.Name]); o >= 0 {
+			f.Sel = o
 		}
 	}
 	m.spec, m.row, m.btn, m.prog = &spec, 0, 0, nil
@@ -140,7 +204,7 @@ func (m *Model) stop() {
 func (m Model) Values() map[string]string {
 	v := map[string]string{}
 	for _, f := range m.spec.Fields {
-		v[f.Name] = f.Options[f.Sel]
+		v[f.Name] = f.value()
 	}
 	return v
 }
@@ -202,6 +266,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	rows := len(m.spec.Fields) + 1
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if m.row < len(m.spec.Fields) && m.spec.Fields[m.row].Input && m.typeIn(msg) {
+			return nil
+		}
 		switch msg.String() {
 		case "esc", "q", "ctrl+c":
 			m.Close()
@@ -224,9 +291,15 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		x, y := m.offset()
 		msg.X, msg.Y = msg.X-x, msg.Y-y
 		for fi := range m.spec.Fields {
-			for oi := range m.spec.Fields[fi].Options {
+			f := &m.spec.Fields[fi]
+			for oi := range f.Options {
 				if zone.Get(optionZone(fi, oi)).InBounds(msg) {
-					m.row, m.spec.Fields[fi].Sel = fi, oi
+					m.row = fi
+					if f.Input {
+						f.Text, f.Sel, f.fresh = f.Options[oi], 0, false
+					} else {
+						f.Sel = oi
+					}
 				}
 			}
 		}
@@ -237,6 +310,49 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 	}
 	return nil
+}
+
+// typeIn edits the focused input field with key k, if it is one that does:
+// text, backspace, tab completing, ←→ picking another suggestion.
+func (m *Model) typeIn(k tea.KeyMsg) bool {
+	f := &m.spec.Fields[m.row]
+	key := k.Key()
+	switch s := k.String(); {
+	case s == "tab":
+		g := f.ghost()
+		if i := f.suggestion(); g == "" && (i < 0 || f.fresh || f.Text == "") {
+			return false
+		} else if g == "" {
+			g = f.Options[i] // one that contains Text: becomes it
+			f.Text = ""
+		}
+		f.Text, f.Sel, f.fresh = f.Text+g, 0, false
+	case s == "backspace":
+		if f.fresh {
+			f.Text = ""
+		} else if r := []rune(f.Text); len(r) > 0 {
+			f.Text = string(r[:len(r)-1])
+		}
+		f.Sel, f.fresh = 0, false
+	case s == "ctrl+u":
+		f.Text, f.Sel, f.fresh = "", 0, false
+	case s == "left" || s == "right":
+		if n := len(f.suggestions()); n > 0 {
+			d := 1
+			if s == "left" {
+				d = n - 1
+			}
+			f.Sel = (min(f.Sel, n-1) + d) % n
+		}
+	case key.Text != "" && key.Mod&^tea.ModShift == 0:
+		if f.fresh {
+			f.Text = ""
+		}
+		f.Text, f.Sel, f.fresh = f.Text+key.Text, 0, false
+	default:
+		return false
+	}
+	return true
 }
 
 func (m *Model) step(d int) {
@@ -282,6 +398,10 @@ func (m Model) View() string {
 			label = focused.Render("› " + label)
 		} else {
 			label = faint.Render("  " + label)
+		}
+		if f.Input {
+			lines = append(lines, label+"  "+m.inputView(fi, max(20, min(70, m.ctx.ScreenWidth-titleW-16))))
+			continue
 		}
 		lo, hi := visibleOptions(f, max(20, min(70, m.ctx.ScreenWidth-titleW-16)))
 		opts := []string{}
@@ -330,6 +450,8 @@ func (m Model) View() string {
 		lines = append(lines, faint.Render("↑↓ move · enter or 1-9 choose · esc cancel"))
 	case m.prog != nil:
 		lines = append(lines, faint.Render("esc cancel"))
+	case m.row < len(m.spec.Fields) && m.spec.Fields[m.row].Input:
+		lines = append(lines, faint.Render("type · tab complete · ←→ suggestion · ↑↓ move · enter confirm · esc cancel"))
 	default:
 		lines = append(lines, faint.Render("↑↓ move · ←→ choose · enter confirm · esc cancel"))
 	}
@@ -339,6 +461,48 @@ func (m Model) View() string {
 		BorderForeground(t.PrimaryBorder).
 		Padding(1, 3).
 		Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
+}
+
+// inputView is an input field: its text, the rest of the picked suggestion in
+// grey, then the other suggestions, fainter, as many as fit in width.
+func (m Model) inputView(fi int, width int) string {
+	t := m.ctx.Theme
+	f := m.spec.Fields[fi]
+	faint := lipgloss.NewStyle().Foreground(t.FaintText)
+	text := lipgloss.NewStyle().Foreground(t.PrimaryText)
+	if f.fresh {
+		text = text.Background(t.SelectedBackground) // typing replaces it
+	}
+	ghost := f.ghost()
+	shown := ghost != "" // the picked suggestion is already
+	s := " " + text.Render(f.Text)
+	if fi == m.row {
+		cur := " "
+		if ghost != "" {
+			cur, ghost = ghost[:1], ghost[1:]
+		}
+		s += lipgloss.NewStyle().Reverse(true).Render(cur)
+	}
+	s += faint.Render(ghost)
+	used := lipgloss.Width(s)
+	picked := f.suggestion()
+	for _, oi := range f.suggestions() {
+		o := f.Options[oi]
+		if shown && oi == picked {
+			continue
+		}
+		if used+lipgloss.Width(o)+3 > width {
+			s += faint.Render("  …")
+			break
+		}
+		st := faint.Faint(true)
+		if oi == picked {
+			st = faint.Underline(true)
+		}
+		s += "  " + zone.Mark(optionZone(fi, oi), st.Render(o))
+		used += lipgloss.Width(o) + 2
+	}
+	return s
 }
 
 // progressBarWidth is the bar's length in cells.

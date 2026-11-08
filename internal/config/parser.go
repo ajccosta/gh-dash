@@ -230,12 +230,14 @@ type KeybindingForm struct {
 }
 
 // FormField is one row of choices. OptionsCommand adds the lines it prints
-// (a shell command, run when the dialog opens) after Options.
+// (a shell command, run when the dialog opens) after Options. An Input field
+// is typed instead, the options suggested as it is (tab completes).
 type FormField struct {
 	Name           string   `yaml:"name"`
 	Title          string   `yaml:"title,omitempty"`
 	Options        []string `yaml:"options,omitempty"`
 	OptionsCommand string   `yaml:"optionsCommand,omitempty"`
+	Input          bool     `yaml:"input,omitempty"`
 }
 
 func (kb Keybinding) NewBinding(previous *key.Binding) key.Binding {

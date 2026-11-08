@@ -104,3 +104,45 @@ func TestDialog_RemembersChoices(t *testing.T) {
 	open()
 	require.Equal(t, "y", m.Values()["a"], "a cancelled dialog is not remembered")
 }
+
+func TestDialog_InputField(t *testing.T) {
+	var got map[string]string
+	m := newDialog(&got)
+	m.Open(Spec{
+		Title: "Review",
+		Fields: []Field{{Name: "Machine", Title: "Machine", Input: true,
+			Options: []string{"local", "cluster", "chirop-1", "chiclet-2", "grid", "rich"}}},
+		Buttons: []string{"Run", "Cancel"},
+		Submit: func(v map[string]string, _ string) tea.Cmd {
+			got = v
+			return func() tea.Msg { return nil }
+		},
+	})
+	typ := func(s string) {
+		for _, r := range s {
+			m.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
+		}
+	}
+	f := func() Field { return m.spec.Fields[0] }
+	require.Equal(t, "local", f().Text, "starts at the first option")
+
+	typ("ch") // replaces the starting value
+	require.Equal(t, "ch", f().Text)
+	require.Equal(t, "irop-1", f().ghost())
+	view := ansi.Strip(m.View())
+	require.Contains(t, view, "chirop-1  chiclet-2  rich", "prefix matches, then the rest")
+	require.Equal(t, 1, strings.Count(view, "chirop-1"))
+
+	m.Update(tea.KeyPressMsg{Code: tea.KeyRight}) // the next suggestion
+	require.Equal(t, "iclet-2", f().ghost())
+	m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	require.Equal(t, "chiclet-2", f().Text)
+
+	m.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	typ("x") // not among the options: typed as is; j/k/q type too
+	typ("jkq")
+	require.Equal(t, "chiclet-xjkq", f().Text)
+	require.Equal(t, "", f().ghost())
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	require.Equal(t, map[string]string{"Machine": "chiclet-xjkq"}, got)
+}

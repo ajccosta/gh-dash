@@ -39,7 +39,7 @@ func (m *Model) withForm(kb config.Keybinding, row any, run func() tea.Cmd) tea.
 		if label == "" {
 			label = f.Name
 		}
-		fields = append(fields, dialog.Field{Name: f.Name, Title: label, Options: opts})
+		fields = append(fields, dialog.Field{Name: f.Name, Title: label, Options: opts, Input: f.Input})
 	}
 	var text []string
 	if r, ok := row.(interface {
