@@ -3,6 +3,8 @@ package tui
 import (
 	"bufio"
 	"bytes"
+	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -16,6 +18,9 @@ import (
 // the dialog drawing a bar the command moves by printing lines:
 //
 //	progress PCT TEXT   the bar at PCT (0-100), TEXT the current step
+//	ask TEXT<tab>OPTION<tab>OPTION...
+//	                    show TEXT and the options; the picked one's number
+//	                    (1 for the first) and a newline go to its stdin
 //	run COMMAND         run COMMAND in the terminal once this one is done
 //
 // Its other lines, and stderr, show in the dialog if it fails.
@@ -27,9 +32,17 @@ type startProgressMsg struct {
 	command string
 }
 
-// progressRun is a running command; its messages come through lines.
+// progressRun is a running command; its messages come through lines, the
+// answers to its questions go to stdin.
 type progressRun struct {
 	lines chan tea.Msg
+	stdin io.WriteCloser
+}
+
+type progressAskMsg struct {
+	run     *progressRun
+	text    string
+	options []string
 }
 
 type progressLineMsg struct {
@@ -62,6 +75,14 @@ func (m *Model) updateProgress(msg tea.Msg) (tea.Cmd, bool) {
 			m.dialog.SetProgress(msg.pct, msg.step)
 		}
 		return msg.run.next(), true
+	case progressAskMsg:
+		if msg.run == m.progressRun {
+			run := msg.run
+			m.dialog.AskProgress(msg.text, msg.options, func(i int) {
+				_, _ = fmt.Fprintf(run.stdin, "%d\n", i+1)
+			})
+		}
+		return msg.run.next(), true
 	case progressDoneMsg:
 		if msg.run != m.progressRun {
 			return nil, true // cancelled
@@ -86,13 +107,17 @@ func (m *Model) startProgress(p startProgressMsg) tea.Cmd {
 	if err != nil {
 		return func() tea.Msg { return constants.ErrMsg{Err: err} }
 	}
+	stdin, err := c.StdinPipe()
+	if err != nil {
+		return func() tea.Msg { return constants.ErrMsg{Err: err} }
+	}
 	var stderr bytes.Buffer
 	c.Stderr = &stderr
 	inGroup(c)
 	if err := c.Start(); err != nil {
 		return func() tea.Msg { return constants.ErrMsg{Err: err} }
 	}
-	run := &progressRun{lines: make(chan tea.Msg)}
+	run := &progressRun{lines: make(chan tea.Msg), stdin: stdin}
 	m.progressRun = run
 	m.dialog.OpenProgress(p.title, p.text, func() {
 		m.progressRun = nil
@@ -111,6 +136,9 @@ func (m *Model) startProgress(p startProgressMsg) tea.Cmd {
 					pct = -1
 				}
 				run.lines <- progressLineMsg{run: run, pct: pct, step: step}
+			} else if rest, ok := strings.CutPrefix(line, "ask "); ok {
+				parts := strings.Split(rest, "\t")
+				run.lines <- progressAskMsg{run: run, text: parts[0], options: parts[1:]}
 			} else if rest, ok := strings.CutPrefix(line, "run "); ok {
 				then = rest
 			} else if line != "" {

@@ -42,13 +42,24 @@ type Model struct {
 	prog *progress
 }
 
-// progress is a running command's: how far, its current step, and once it
-// failed, what it said. Its one button cancels it, or closes once it failed.
+// progress is a running command's: how far, its current step, the question
+// it waits on, and once it failed, what it said. Its one button cancels it,
+// or closes once it failed.
 type progress struct {
 	pct    int
 	step   string
+	ask    *question
 	failed []string
 	cancel func()
+}
+
+// question is a running command's, one option per line; answer gets the
+// picked option's index.
+type question struct {
+	text    string
+	options []string
+	sel     int
+	answer  func(int)
 }
 
 func New(ctx *context.ProgramContext) Model { return Model{ctx: ctx} }
@@ -80,12 +91,28 @@ func (m *Model) SetProgress(pct int, step string) {
 	m.prog.step = step
 }
 
+// AskProgress shows text and options, one per line, until the user picks
+// one, which answer gets (its index); esc cancels the command instead.
+func (m *Model) AskProgress(text string, options []string, answer func(int)) {
+	if m.prog == nil || len(options) == 0 {
+		return
+	}
+	m.prog.ask = &question{text: text, options: options, answer: answer}
+}
+
+// pick answers the question with option i and goes back to the bar.
+func (m *Model) pick(i int) {
+	q := m.prog.ask
+	m.prog.ask = nil
+	q.answer(i)
+}
+
 // FailProgress shows what the command said instead of the bar.
 func (m *Model) FailProgress(lines []string) {
 	if m.prog == nil {
 		return
 	}
-	m.prog.failed, m.prog.cancel = append([]string{"Failed:"}, lines...), nil
+	m.prog.failed, m.prog.cancel, m.prog.ask = append([]string{"Failed:"}, lines...), nil, nil
 	m.spec.Buttons = []string{"Close"}
 }
 
@@ -120,15 +147,35 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return nil
 	}
 	if m.prog != nil {
+		q := m.prog.ask
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
-			switch msg.String() {
-			case "esc", "q", "ctrl+c", "enter":
+			switch k := msg.String(); {
+			case k == "esc" || k == "q" || k == "ctrl+c":
 				m.stop()
+			case q == nil && k == "enter":
+				m.stop()
+			case q == nil:
+			case k == "enter":
+				m.pick(q.sel)
+			case k == "up" || k == "k" || k == "shift+tab":
+				q.sel = (q.sel + len(q.options) - 1) % len(q.options)
+			case k == "down" || k == "j" || k == "tab":
+				q.sel = (q.sel + 1) % len(q.options)
+			case len(k) == 1 && k[0] >= '1' && int(k[0]-'1') < len(q.options):
+				m.pick(int(k[0] - '1'))
 			}
 		case tea.MouseClickMsg:
 			x, y := m.offset()
 			msg.X, msg.Y = msg.X-x, msg.Y-y
+			if q != nil {
+				for i := range q.options {
+					if zone.Get(questionZone(i)).InBounds(msg) {
+						m.pick(i)
+						return nil
+					}
+				}
+			}
 			if zone.Get(buttonZone(0)).InBounds(msg) {
 				m.stop()
 			}
@@ -187,6 +234,7 @@ func (m *Model) step(d int) {
 
 func optionZone(field, option int) string { return fmt.Sprintf("dialog-opt-%d-%d", field, option) }
 func buttonZone(b int) string             { return fmt.Sprintf("dialog-btn-%d", b) }
+func questionZone(i int) string           { return fmt.Sprintf("dialog-ask-%d", i) }
 
 // View is the dialog's box; Layer places it in the middle of the screen.
 func (m Model) View() string {
@@ -261,6 +309,8 @@ func (m Model) View() string {
 	switch {
 	case m.prog != nil && m.prog.failed != nil:
 		lines = append(lines, faint.Render("enter or esc close"))
+	case m.prog != nil && m.prog.ask != nil:
+		lines = append(lines, faint.Render("↑↓ move · enter or 1-9 choose · esc cancel"))
 	case m.prog != nil:
 		lines = append(lines, faint.Render("esc cancel"))
 	default:
@@ -286,6 +336,20 @@ func (m Model) progressLines() []string {
 		var lines []string
 		for _, l := range m.prog.failed {
 			lines = append(lines, red.Render(ansi.Truncate(l, progressBarWidth+20, "…")))
+		}
+		return append(lines, "")
+	}
+	if q := m.prog.ask; q != nil {
+		chosen := lipgloss.NewStyle().Foreground(t.PrimaryText).Background(t.SelectedBackground).Bold(true)
+		lines := []string{lipgloss.NewStyle().Foreground(t.PrimaryText).Bold(true).Render(q.text)}
+		for i, o := range q.options {
+			s := fmt.Sprintf(" %d  %s ", i+1, ansi.Truncate(o, progressBarWidth+20, "…"))
+			if i == q.sel {
+				s = chosen.Render(s)
+			} else {
+				s = faint.Render(s)
+			}
+			lines = append(lines, zone.Mark(questionZone(i), s))
 		}
 		return append(lines, "")
 	}
