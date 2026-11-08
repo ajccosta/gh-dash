@@ -123,26 +123,40 @@ func TestDialog_InputField(t *testing.T) {
 			m.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
 		}
 	}
+	spec := *m.spec
 	f := func() Field { return m.spec.Fields[0] }
+	right := func() { m.Update(tea.KeyPressMsg{Code: tea.KeyRight}) }
 	require.Equal(t, "local", f().Text, "starts at the first option")
 
-	typ("ch") // replaces the starting value
+	right() // ←→ go through the options shown, as in a choice row
+	require.Equal(t, "cluster", f().Text)
+	m.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	m.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	require.Equal(t, "rich", f().Text, "wraps around")
+
+	typ("ch") // replaces the chosen value, filtering the options
 	require.Equal(t, "ch", f().Text)
 	require.Equal(t, "irop-1", f().ghost())
 	view := ansi.Strip(m.View())
-	require.Contains(t, view, "chirop-1  chiclet-2  rich", "prefix matches, then the rest")
-	require.Equal(t, 1, strings.Count(view, "chirop-1"))
+	require.Contains(t, view, "chirop-1   chiclet-2   rich", "prefix matches, then the rest")
+	require.NotContains(t, view, "local")
 
-	m.Update(tea.KeyPressMsg{Code: tea.KeyRight}) // the next suggestion
-	require.Equal(t, "iclet-2", f().ghost())
-	m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	right() // the grey one, then the next
+	require.Equal(t, "chirop-1", f().Text)
+	right()
 	require.Equal(t, "chiclet-2", f().Text)
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	require.Equal(t, map[string]string{"Machine": "chiclet-2"}, got)
 
+	m.Open(spec)
+	typ("chi")
+	m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	require.Equal(t, "chirop-1", f().Text, "tab completes")
 	m.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
 	typ("x") // not among the options: typed as is; j/k/q type too
 	typ("jkq")
-	require.Equal(t, "chiclet-xjkq", f().Text)
+	require.Equal(t, "chirop-xjkq", f().Text)
 	require.Equal(t, "", f().ghost())
 	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-	require.Equal(t, map[string]string{"Machine": "chiclet-xjkq"}, got)
+	require.Equal(t, map[string]string{"Machine": "chirop-xjkq"}, got)
 }
