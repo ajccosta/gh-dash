@@ -216,6 +216,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if cmd, ok := m.updateProgress(msg); ok {
 		return m, cmd
 	}
+	if plan, ok := msg.(deleteBranchPlanMsg); ok {
+		return m, m.openDeleteBranchDialog(plan)
+	}
 	if m.dialog.IsOpen() {
 		switch msg.(type) {
 		case tea.KeyMsg, tea.MouseClickMsg:
@@ -501,6 +504,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, cmd
 
+			case key.Matches(msg, keys.PRKeys.DeleteBranch):
+				if currRowData != nil {
+					cmd = m.promptConfirmation(currSection, "deleteBranch")
+				}
+				return m, cmd
+
 			case key.Matches(msg, keys.PRKeys.Update):
 				if currRowData != nil {
 					cmd = m.promptConfirmation(currSection, "update")
@@ -625,6 +634,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 						case prview.PRActionMerge:
 							cmd = m.promptConfirmationForNotificationPR("merge")
+							return m, cmd
+
+						case prview.PRActionDeleteBranch:
+							cmd = m.promptConfirmationForNotificationPR("deleteBranch")
 							return m, cmd
 
 						case prview.PRActionUpdate:
@@ -1352,6 +1365,10 @@ func (m *Model) promptConfirmation(currSection section.Section, action string) t
 		sid := tasks.SectionIdentifier{Id: currSection.GetId(), Type: currSection.GetType()}
 		return m.openMergeDialog(sid, m.getCurrRowData())
 	}
+	if currSection != nil && action == "deleteBranch" {
+		sid := tasks.SectionIdentifier{Id: currSection.GetId(), Type: currSection.GetType()}
+		return m.planDeleteBranch(sid, m.getCurrRowData())
+	}
 	if currSection != nil {
 		currSection.SetPromptConfirmationAction(action)
 		return currSection.SetIsPromptConfirmationShown(true)
@@ -1878,6 +1895,10 @@ func (m *Model) promptConfirmationForNotificationPR(action string) tea.Cmd {
 	if pr := m.notificationView.GetSubjectPR(); pr != nil && action == "merge" {
 		sid := tasks.SectionIdentifier{Id: m.currSectionId, Type: notificationssection.SectionType}
 		return m.openMergeDialog(sid, pr)
+	}
+	if pr := m.notificationView.GetSubjectPR(); pr != nil && action == "deleteBranch" {
+		sid := tasks.SectionIdentifier{Id: m.currSectionId, Type: notificationssection.SectionType}
+		return m.planDeleteBranch(sid, pr)
 	}
 	prompt := m.notificationView.SetPendingPRAction(action)
 	if prompt == "" {

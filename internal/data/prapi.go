@@ -52,6 +52,7 @@ type EnrichedPullRequestData struct {
 	HeadRef struct {
 		Name string
 	}
+	IsCrossRepository  bool      // the head branch is in a fork
 	Labels             PRLabels  `graphql:"labels(first: 6)"`
 	Assignees          Assignees `graphql:"assignees(first: 3)"`
 	Repository         Repository
@@ -89,17 +90,18 @@ type PullRequestData struct {
 	HeadRef struct {
 		Name string
 	}
-	Repository       Repository
-	Assignees        Assignees            `graphql:"assignees(first: 3)"`
-	Comments         Comments             `graphql:"comments"`
-	ReviewThreads    ReviewThreads        `graphql:"reviewThreads"`
-	Reviews          ReviewsNumber        `graphql:"reviews"`
-	ReviewRequests   ReviewRequestsNumber `graphql:"reviewRequests"`
-	IsDraft          bool
-	IsInMergeQueue   bool
-	Commits          LastCommitStatus `graphql:"commits(last: 1)"`
-	Labels           PRLabels         `graphql:"labels(first: 6)"`
-	MergeStateStatus MergeStateStatus `graphql:"mergeStateStatus"`
+	IsCrossRepository bool // the head branch is in a fork
+	Repository        Repository
+	Assignees         Assignees            `graphql:"assignees(first: 3)"`
+	Comments          Comments             `graphql:"comments"`
+	ReviewThreads     ReviewThreads        `graphql:"reviewThreads"`
+	Reviews           ReviewsNumber        `graphql:"reviews"`
+	ReviewRequests    ReviewRequestsNumber `graphql:"reviewRequests"`
+	IsDraft           bool
+	IsInMergeQueue    bool
+	Commits           LastCommitStatus `graphql:"commits(last: 1)"`
+	Labels            PRLabels         `graphql:"labels(first: 6)"`
+	MergeStateStatus  MergeStateStatus `graphql:"mergeStateStatus"`
 }
 
 type LastCommitStatus struct {
@@ -471,6 +473,7 @@ func (e EnrichedPullRequestData) ToPullRequestData() PullRequestData {
 		BaseRefName:       e.BaseRefName,
 		HeadRepository:    e.HeadRepository,
 		HeadRef:           e.HeadRef,
+		IsCrossRepository: e.IsCrossRepository,
 		Repository:        e.Repository,
 		Assignees:         e.Assignees,
 		IsDraft:           e.IsDraft,

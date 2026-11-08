@@ -3,6 +3,7 @@ package tasks
 import (
 	"bytes"
 	"fmt"
+	"net/url"
 	"os/exec"
 	"strings"
 	"time"
@@ -22,11 +23,15 @@ type SectionIdentifier struct {
 }
 
 type UpdatePRMsg struct {
-	PrNumber         int
-	IsClosed         *bool
-	NewComment       *data.Comment
-	ReadyForReview   *bool
-	IsMerged         *bool
+	PrNumber       int
+	IsClosed       *bool
+	NewComment     *data.Comment
+	ReadyForReview *bool
+	IsMerged       *bool
+	BranchDeleted  *bool
+	// Rebased: other PRs of Repo (by number) now based on another branch.
+	Repo             string
+	Rebased          map[int]string
 	AddedAssignees   *data.Assignees
 	RemovedAssignees *data.Assignees
 	Labels           *data.PRLabels
@@ -48,7 +53,8 @@ type GitHubTask struct {
 	Section      SectionIdentifier
 	StartText    string
 	FinishedText string
-	FailedText   string // prefix of the error shown when gh fails; optional
+	FailedText   string     // prefix of the error shown when gh fails; optional
+	More         [][]string // further gh calls, run in order after Args while each succeeds
 	Msg          func(c *exec.Cmd, err error) tea.Msg
 }
 
@@ -69,6 +75,16 @@ func fireTask(ctx *context.ProgramContext, task GitHubTask) tea.Cmd {
 		c.Stderr = &stderr
 
 		err := ghError(c.Run(), stderr.String(), task.FailedText)
+		for _, args := range task.More {
+			if err != nil {
+				break
+			}
+			log.Info("Running task", "cmd", "gh "+strings.Join(args, " "))
+			c = exec.Command("gh", args...)
+			stderr.Reset()
+			c.Stderr = &stderr
+			err = ghError(c.Run(), stderr.String(), task.FailedText)
+		}
 		return constants.TaskFinishedMsg{
 			TaskId:      task.Id,
 			SectionId:   task.Section.Id,
@@ -193,6 +209,51 @@ func MergePR(
 		Msg: func(c *exec.Cmd, err error) tea.Msg {
 			isMerged := err == nil
 			return UpdatePRMsg{PrNumber: prNumber, IsMerged: &isMerged}
+		},
+	})
+}
+
+// DeleteBranch moves each of the open PRs onto base, then deletes branch, the
+// head of the merged PR pr. It stops at the first failure, so the branch stays
+// while a PR still points at it.
+func DeleteBranch(
+	ctx *context.ProgramContext,
+	section SectionIdentifier,
+	pr data.RowData,
+	branch, base string,
+	prs []int,
+) tea.Cmd {
+	repo := pr.GetRepoNameWithOwner()
+	var steps [][]string
+	for _, n := range prs {
+		steps = append(steps, []string{"pr", "edit", fmt.Sprint(n), "-R", repo, "--base", base})
+	}
+	segments := strings.Split(branch, "/")
+	for i, s := range segments {
+		segments[i] = url.PathEscape(s)
+	}
+	steps = append(steps, []string{"api", "-X", "DELETE",
+		"repos/" + repo + "/git/refs/heads/" + strings.Join(segments, "/")})
+	prNumber := pr.GetNumber()
+	return fireTask(ctx, GitHubTask{
+		Id:           buildTaskId("delete_branch", prNumber),
+		Args:         steps[0],
+		More:         steps[1:],
+		Section:      section,
+		StartText:    fmt.Sprintf("Deleting %s", branch),
+		FinishedText: fmt.Sprintf("Deleted %s", branch),
+		FailedText:   fmt.Sprintf("Deleting %s failed", branch),
+		Msg: func(c *exec.Cmd, err error) tea.Msg {
+			// On a failure some PRs may have moved already: the next refresh shows them.
+			deleted := err == nil
+			msg := UpdatePRMsg{PrNumber: prNumber, BranchDeleted: &deleted}
+			if deleted {
+				msg.Repo, msg.Rebased = repo, map[int]string{}
+				for _, n := range prs {
+					msg.Rebased[n] = base
+				}
+			}
+			return msg
 		},
 	})
 }

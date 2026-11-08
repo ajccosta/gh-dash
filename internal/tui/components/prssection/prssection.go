@@ -159,6 +159,17 @@ func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
 		}
 
 	case tasks.UpdatePRMsg:
+		rebased := false
+		for i, currPr := range m.Prs {
+			if base, ok := msg.Rebased[currPr.Primary.Number]; ok &&
+				currPr.Primary.Repository.NameWithOwner == msg.Repo {
+				m.Prs[i].Primary.BaseRefName = base
+				rebased = true
+			}
+		}
+		if rebased {
+			m.Table.SetRows(m.BuildRows())
+		}
 		for i, currPr := range m.Prs {
 			if currPr.Primary.Number != msg.PrNumber {
 				continue
@@ -188,6 +199,9 @@ func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
 			}
 			if msg.ReadyForReview != nil && *msg.ReadyForReview {
 				currPr.Primary.IsDraft = false
+			}
+			if msg.BranchDeleted != nil && *msg.BranchDeleted {
+				currPr.Primary.HeadRef.Name = ""
 			}
 			if msg.IsMerged != nil && *msg.IsMerged {
 				currPr.Primary.State = "MERGED"

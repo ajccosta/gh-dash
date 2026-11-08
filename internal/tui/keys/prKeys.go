@@ -24,6 +24,7 @@ type PRKeyMap struct {
 	Ready                key.Binding
 	Reopen               key.Binding
 	Merge                key.Binding
+	DeleteBranch         key.Binding
 	Update               key.Binding
 	WatchChecks          key.Binding
 	ApproveWorkflows     key.Binding
@@ -88,6 +89,10 @@ var PRKeys = PRKeyMap{
 		key.WithKeys("m"),
 		key.WithHelp("m", "merge"),
 	),
+	DeleteBranch: key.NewBinding(
+		key.WithKeys("B"),
+		key.WithHelp("B", "delete branch"),
+	),
 	Update: key.NewBinding(
 		key.WithKeys("u"),
 		key.WithHelp("u", "update pr from base branch"),
@@ -125,6 +130,7 @@ func PRFullHelp() []key.Binding {
 		PRKeys.Ready,
 		PRKeys.Reopen,
 		PRKeys.Merge,
+		PRKeys.DeleteBranch,
 		PRKeys.Update,
 		PRKeys.WatchChecks,
 		PRKeys.ApproveWorkflows,
@@ -186,6 +192,8 @@ func rebindPRKeys(keys []config.Keybinding) error {
 			key = &PRKeys.Reopen
 		case "merge":
 			key = &PRKeys.Merge
+		case "deleteBranch":
+			key = &PRKeys.DeleteBranch
 		case "update":
 			key = &PRKeys.Update
 		case "watchChecks":

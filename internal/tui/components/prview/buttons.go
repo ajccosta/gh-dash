@@ -27,6 +27,7 @@ var buttons = []button{
 	{ApproveZoneId, "approve", &keys.PRKeys.Approve, (*Model).CanApprove, (*Model).renderApproveButton},
 	{MergeZoneId, "merge", &keys.PRKeys.Merge, (*Model).CanMerge, (*Model).renderMergeButton},
 	{CloseZoneId, "close", &keys.PRKeys.Close, (*Model).CanClose, (*Model).renderCloseButton},
+	{DeleteBranchZoneId, "deleteBranch", &keys.PRKeys.DeleteBranch, (*Model).CanDeleteBranch, (*Model).renderDeleteBranchButton},
 }
 
 // ButtonIds are the zone ids of the buttons that can be pressed now, in row order.
@@ -57,7 +58,7 @@ func (m *Model) ButtonHints() []string {
 	var hints []string
 	for _, b := range buttons {
 		if b.enabled(m) {
-			hints = append(hints, b.key.Help().Key+" "+b.action)
+			hints = append(hints, b.key.Help().Key+" "+b.key.Help().Desc)
 		}
 	}
 	return hints
