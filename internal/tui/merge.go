@@ -14,7 +14,9 @@ import (
 
 // openMergeDialog asks how to merge the PR in a dialog over the dashboard,
 // then merges it in the background: gh never takes over the terminal. Its
-// branch is deleted as B does, moving the PRs based on it first.
+// branch is deleted as B does, moving the PRs based on it first. A PR GitHub
+// can't merge but git can (prview.BaseMerge) gets its base merged in with git
+// first.
 func (m *Model) openMergeDialog(sid tasks.SectionIdentifier, pr data.RowData) tea.Cmd {
 	if pr == nil {
 		return nil
@@ -22,6 +24,15 @@ func (m *Model) openMergeDialog(sid tasks.SectionIdentifier, pr data.RowData) te
 	text := []string{pr.GetTitle()}
 	if row, ok := pr.(*prrow.Data); ok && row.Primary != nil && row.Primary.BaseRefName != "" {
 		text = append(text, fmt.Sprintf("%s → %s", row.Primary.HeadRefName, row.Primary.BaseRefName))
+	}
+	bm, viaGit := m.prView.BaseMerge()
+	viaGit = viaGit && bm.Number == pr.GetNumber() && bm.Repo == pr.GetRepoNameWithOwner()
+	if viaGit {
+		text = append(text, "",
+			"GitHub can't merge it, but git can: GitHub merges from one",
+			"common ancestor, git from all of them. OK merges "+bm.Base,
+			"into "+bm.Head+" with git first and pushes that; GitHub can",
+			"merge the PR then.")
 	}
 	title := fmt.Sprintf("Merge #%d?", pr.GetNumber())
 	if repo := pr.GetRepoNameWithOwner(); repo != "" && repo != "?" {
@@ -36,10 +47,19 @@ func (m *Model) openMergeDialog(sid tasks.SectionIdentifier, pr data.RowData) te
 		},
 		Buttons: []string{"Merge", "Cancel"},
 		Submit: func(v map[string]string, _ string) tea.Cmd {
-			if v["delete"] == "yes" {
-				return m.planDeleteBranch(sid, pr, v["method"])
+			merge := func() tea.Cmd {
+				if v["delete"] == "yes" {
+					return m.planDeleteBranch(sid, pr, v["method"])
+				}
+				return tasks.MergePR(m.ctx, sid, pr, v["method"], nil)
 			}
-			return tasks.MergePR(m.ctx, sid, pr, v["method"], nil)
+			if !viaGit {
+				return merge()
+			}
+			return tasks.Then(m.ctx, sid, pr, "merge_base_in",
+				fmt.Sprintf("Merging %s into %s with git", bm.Base, bm.Head),
+				fmt.Sprintf("Merged %s into %s; GitHub can merge #%d", bm.Base, bm.Head, bm.Number),
+				bm.Push, merge)
 		},
 	})
 	return nil

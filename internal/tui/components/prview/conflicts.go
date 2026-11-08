@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -36,6 +37,7 @@ type conflicts struct {
 type merge struct {
 	dir   string
 	base  string   // the base's commit
+	head  string   // the PR's
 	tree  string   // the merge, conflict markers in its files
 	files []string // the conflicting ones; none: git merges it cleanly
 }
@@ -122,6 +124,10 @@ func conflictingFiles(dir, repo string, number int, base string) (merge, error) 
 		return res, err
 	}
 	res.base = strings.TrimSpace(out)
+	if out, _, err = git("rev-parse", "refs/"+headRef); err != nil {
+		return res, err
+	}
+	res.head = strings.TrimSpace(out)
 	out, code, err := git("merge-tree", "--write-tree", "--name-only", "--no-messages", baseRef, headRef)
 	if err != nil {
 		return res, err
@@ -260,7 +266,9 @@ func (m *Model) renderConflictList() string {
 	case c.err != nil:
 		return head + "\n" + faint.Render(c.err.Error())
 	case len(c.files) == 0:
-		return head + "\n" + faint.Render("Git merges it cleanly: GitHub may not have checked again yet")
+		return head + "\n" + faint.Width(m.getIndentedContentWidth()).Render(fmt.Sprintf("GitHub can't merge it, but git can: it merges "+
+			"from one common ancestor, git from all of them. Merging (m) merges %s into %s with git first.",
+			m.pr.Data.Primary.BaseRefName, m.pr.Data.Primary.HeadRefName))
 	}
 	lines := []string{head}
 	if m.focused && m.tabPicker() == conflictPicker {
@@ -281,4 +289,66 @@ func (m *Model) renderConflictList() string {
 		lines = append(lines, entry(i+1, f, main))
 	}
 	return strings.Join(lines, "\n")
+}
+
+// BaseMerge is a PR GitHub can't merge but git can. GitHub merges from one
+// common ancestor of the PR and its base; where they have several (each merged
+// the other in at some point), git merges those first and may get through
+// without a conflict. Merging the base into the PR's branch, as git does,
+// leaves a single one, and GitHub can merge the PR then.
+type BaseMerge struct {
+	merge
+	Repo, Base, Head string // the PR's base and head branches
+	Number           int
+}
+
+// BaseMerge is set while GitHub says the shown PR conflicts and git merged it
+// cleanly.
+func (m *Model) BaseMerge() (BaseMerge, bool) {
+	c, ok := m.shownConflicts()
+	if !ok || c.pending || c.err != nil || len(c.files) > 0 || c.head == "" ||
+		m.pr.Data.Primary.IsCrossRepository {
+		return BaseMerge{}, false
+	}
+	p := m.pr.Data.Primary
+	return BaseMerge{merge: c.merge, Repo: p.Repository.NameWithOwner,
+		Base: p.BaseRefName, Head: p.HeadRefName, Number: p.Number}, true
+}
+
+// mergeablePolls is how often, mergeableEvery apart, GitHub is asked whether
+// the PR can be merged now; tests shorten them.
+var (
+	mergeablePolls = 30
+	mergeableEvery = 2 * time.Second
+)
+
+// Push commits git's merge of the base into the PR's branch and pushes it,
+// never forced: if the branch moved since, the push fails. It returns once
+// GitHub says the PR can be merged.
+func (b BaseMerge) Push() error {
+	commit, err := runGit(b.dir, "commit-tree", b.tree, "-p", b.head, "-p", b.base,
+		"-m", fmt.Sprintf("Merge branch '%s' into %s", b.Base, b.Head))
+	if err != nil {
+		return err
+	}
+	if _, err := runGit(b.dir, "push", "-q", conflictsRemote(b.Repo),
+		strings.TrimSpace(commit)+":refs/heads/"+b.Head); err != nil {
+		return err
+	}
+	commit = strings.TrimSpace(commit)
+	for range mergeablePolls {
+		time.Sleep(mergeableEvery)
+		out, err := exec.Command("gh", "api", fmt.Sprintf("repos/%s/pulls/%d", b.Repo, b.Number),
+			"--jq", `"\(.head.sha) \(.mergeable)"`).Output()
+		if err != nil {
+			return fmt.Errorf("gh api: %w", err)
+		}
+		switch strings.TrimSpace(string(out)) { // until GitHub has seen the push
+		case commit + " true":
+			return nil
+		case commit + " false":
+			return fmt.Errorf("pushed the merge of %s into %s, but GitHub still can't merge #%d", b.Base, b.Head, b.Number)
+		}
+	}
+	return fmt.Errorf("pushed the merge of %s into %s; GitHub has not said yet whether #%d can be merged", b.Base, b.Head, b.Number)
 }

@@ -96,6 +96,31 @@ func fireTask(ctx *context.ProgramContext, task GitHubTask) tea.Cmd {
 	})
 }
 
+// NextMsg has the dashboard run what Run returns: the task that comes after
+// another, started only once that one is done.
+type NextMsg struct{ Run func() tea.Cmd }
+
+// Then runs step in the background, shown as a task of its own, and next once
+// it succeeds: something to do in git, say, before the gh calls next makes.
+func Then(ctx *context.ProgramContext, section SectionIdentifier, pr data.RowData,
+	id, startText, finishedText string, step func() error, next func() tea.Cmd,
+) tea.Cmd {
+	task := context.Task{Id: buildTaskId(id, pr.GetNumber()), StartText: startText,
+		FinishedText: finishedText, State: context.TaskStart}
+	return tea.Batch(ctx.StartTask(task), func() tea.Msg {
+		log.Info("Running task", "id", task.Id)
+		err := step()
+		done := func() tea.Msg {
+			return constants.TaskFinishedMsg{TaskId: task.Id, SectionId: section.Id,
+				SectionType: section.Type, Err: err, Msg: UpdatePRMsg{PrNumber: pr.GetNumber()}}
+		}
+		if err != nil {
+			return done()
+		}
+		return tea.BatchMsg{done, func() tea.Msg { return NextMsg{next} }}
+	})
+}
+
 func OpenBranchPR(ctx *context.ProgramContext, section SectionIdentifier, branch string) tea.Cmd {
 	return fireTask(ctx, GitHubTask{
 		Id: fmt.Sprintf("branch_open_%s", branch),

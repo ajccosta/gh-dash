@@ -798,6 +798,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case userFetchedMsg:
 		m.ctx.User = msg.user
 
+	case tasks.NextMsg:
+		cmds = append(cmds, msg.Run())
+
 	case constants.TaskFinishedMsg:
 		task, ok := m.tasks[msg.TaskId]
 		if ok {
