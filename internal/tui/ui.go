@@ -510,6 +510,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, cmd
 
+			case key.Matches(msg, keys.PRKeys.Stacks):
+				if s, ok := currSection.(*prssection.Model); ok {
+					cmd = tea.Batch(s.ToggleStacks(), m.onViewedRowChanged())
+				}
+				return m, cmd
+
 			case key.Matches(msg, keys.PRKeys.Update):
 				if currRowData != nil {
 					cmd = m.promptConfirmation(currSection, "update")

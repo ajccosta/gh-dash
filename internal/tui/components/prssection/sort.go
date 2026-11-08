@@ -26,13 +26,16 @@ type prSort struct {
 	desc      bool   // the first click puts the most, newest or best first
 	qualifier string // GitHub's "sort:" for it, if GitHub can sort by it
 	cmp       func(a, b *data.PullRequestData) int
+	// arrange, instead of cmp, puts the PRs in an order of its own, which a
+	// second click does not reverse.
+	arrange func(prs []prrow.Data)
 }
 
 var prSorts = map[string]prSort{
 	"title":    {cmp: byText(func(p *data.PullRequestData) string { return p.Title })},
 	"repo":     {cmp: byText(func(p *data.PullRequestData) string { return p.Repository.NameWithOwner })},
 	"author":   {cmp: byText(func(p *data.PullRequestData) string { return p.Author.Login })},
-	"base":     {cmp: byText(func(p *data.PullRequestData) string { return p.BaseRefName })},
+	"base":     {arrange: stackOrder},
 	"comments": {desc: true, cmp: byNum(func(p *data.PullRequestData) int { return p.Comments.TotalCount + p.ReviewThreads.TotalCount })},
 	"review":   {desc: true, cmp: byNum(reviewRank)},
 	"checks":   {desc: true, cmp: byNum(checksRank)},
@@ -126,7 +129,7 @@ func (m *Model) SortBy(key string) tea.Cmd {
 	}
 	m.syncSortArrow()
 	desc := s.desc
-	if m.Table.SortKey == key {
+	if m.Table.SortKey == key && s.arrange == nil {
 		desc = !m.Table.SortDesc
 	}
 	before := m.GetFilters()
@@ -157,22 +160,30 @@ func (m *Model) loadSort() {
 // keeps the selected PR selected.
 func (m *Model) sortPrs() {
 	s := prSorts[m.sort]
-	if s.cmp == nil {
+	for i := range m.Prs {
+		m.Prs[i].Stacked, m.Prs[i].StackDepth = false, 0
+	}
+	if s.cmp == nil && s.arrange == nil {
+		m.Table.SetRows(m.BuildRows())
 		return
 	}
 	var sel *data.PullRequestData
 	if i := m.Table.GetCurrItem(); i >= 0 && i < len(m.Prs) {
 		sel = m.Prs[i].Primary
 	}
-	slices.SortStableFunc(m.Prs, func(a, b prrow.Data) int {
-		if a.Primary == nil || b.Primary == nil {
-			return 0
-		}
-		if m.sortDesc {
-			return s.cmp(b.Primary, a.Primary)
-		}
-		return s.cmp(a.Primary, b.Primary)
-	})
+	if s.arrange != nil {
+		s.arrange(m.Prs)
+	} else {
+		slices.SortStableFunc(m.Prs, func(a, b prrow.Data) int {
+			if a.Primary == nil || b.Primary == nil {
+				return 0
+			}
+			if m.sortDesc {
+				return s.cmp(b.Primary, a.Primary)
+			}
+			return s.cmp(a.Primary, b.Primary)
+		})
+	}
 	m.Table.SetRows(m.BuildRows())
 	for i, pr := range m.Prs {
 		if sel != nil && pr.Primary == sel {

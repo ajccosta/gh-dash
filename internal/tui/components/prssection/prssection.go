@@ -168,7 +168,7 @@ func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
 			}
 		}
 		if rebased {
-			m.Table.SetRows(m.BuildRows())
+			m.sortPrs() // in stack order they move
 		}
 		for i, currPr := range m.Prs {
 			if currPr.Primary.Number != msg.PrNumber {

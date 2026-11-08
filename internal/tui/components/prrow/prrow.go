@@ -177,7 +177,23 @@ func keepSameSpacesOnAddDeletions(str string) string {
 
 func (pr *PullRequest) renderTitle() string {
 	// The number is in the state column.
-	return components.GetIssueTextStyle(pr.Ctx).Bold(true).Render(pr.Data.Primary.Title)
+	return components.GetIssueTextStyle(pr.Ctx).Bold(true).Render(pr.stackPrefix() + pr.Data.Primary.Title)
+}
+
+// stackPrefix indents a PR under the one it is based on, in stack order,
+// and marks those in conflict with their base.
+func (pr *PullRequest) stackPrefix() string {
+	if !pr.Data.Stacked {
+		return ""
+	}
+	var s string
+	if d := pr.Data.StackDepth; d > 0 {
+		s = strings.Repeat("  ", d-1) + "└ "
+	}
+	if pr.Data.Primary.Mergeable == "CONFLICTING" {
+		s += "✗ "
+	}
+	return s
 }
 
 func (pr *PullRequest) renderExtendedTitle(isSelected bool) string {
@@ -196,7 +212,7 @@ func (pr *PullRequest) renderExtendedTitle(isSelected bool) string {
 		branch := baseStyle.Render(pr.Data.Primary.HeadRefName)
 		top = lipgloss.JoinHorizontal(lipgloss.Top, top, baseStyle.Render(" · "), branch)
 	}
-	title := pr.Data.Primary.Title
+	title := pr.stackPrefix() + pr.Data.Primary.Title
 	var titleColumn table.Column
 	for _, column := range pr.Columns {
 		if column.Grow != nil && *column.Grow {

@@ -10,6 +10,10 @@ type Data struct {
 	Primary    *data.PullRequestData
 	Enriched   data.EnrichedPullRequestData
 	IsEnriched bool
+	// With the list in stack order: Stacked, and how many PRs of the list
+	// it is stacked on, shown as indentation.
+	Stacked    bool
+	StackDepth int
 }
 
 func (data Data) GetTitle() string {
