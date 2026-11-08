@@ -14,6 +14,7 @@ import (
 )
 
 func TestKeybindingForm_ChoicesReachTheCommand(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	zone.NewGlobal()
 	m := newApproveTestModel(t, "other")
 	m.ctx.ScreenWidth, m.ctx.ScreenHeight = 120, 40
@@ -47,9 +48,15 @@ func TestKeybindingForm_ChoicesReachTheCommand(t *testing.T) {
 	require.Equal(t, 2, ran)
 	require.Equal(t, map[string]string{"Worktree": "temporary", "Machine": "tart"}, seen)
 	require.Nil(t, m.formValues, "only while the command is made")
+
+	// The next one starts from those choices.
+	m.withForm(kb, pr, run)
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	require.Equal(t, map[string]string{"Worktree": "temporary", "Machine": "tart"}, seen)
 }
 
 func TestKeybindingForm_ProgressBarThenRun(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	zone.NewGlobal()
 	m := newApproveTestModel(t, "other")
 	m.ctx.ScreenWidth, m.ctx.ScreenHeight = 120, 40
