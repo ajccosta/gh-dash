@@ -99,6 +99,11 @@ var Columns = []Column{
 		Cell: func(pr *PullRequest, _ bool) string { return pr.renderCiStatus() },
 	},
 	{
+		Layout: func(l config.PrsLayoutConfig) config.ColumnConfig { return l.Conflicts },
+		Header: fixed("Conflicts"),
+		Cell:   func(pr *PullRequest, _ bool) string { return pr.renderConflicts() },
+	},
+	{
 		Layout: func(l config.PrsLayoutConfig) config.ColumnConfig { return l.Lines },
 		Header: fixed("±"), Sort: "lines", SortTitle: "±",
 		Cell: (*PullRequest).RenderLines,

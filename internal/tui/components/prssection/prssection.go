@@ -223,6 +223,9 @@ func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
 	case mergeableMsg:
 		m.setMergeable(msg)
 
+	case conflictsCheckedMsg:
+		m.Table.SetRows(m.BuildRows())
+
 	case SectionPullRequestsFetchedMsg:
 		if m.LastFetch.TaskId == msg.TaskId {
 			mergeableCmd := m.keepMergeable(msg.Prs)
@@ -241,7 +244,7 @@ func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
 			m.PageInfo = &msg.PageInfo
 			m.SetIsLoading(false)
 			m.sortPrs()
-			cmd = tea.Batch(m.fetchStackParents(), mergeableCmd)
+			cmd = tea.Batch(m.fetchStackParents(), mergeableCmd, m.checkConflicts())
 			m.Table.SetRows(m.BuildRows())
 			m.Table.SetLastUpdated(time.Now())
 			m.UpdateTotalItemsCount(m.TotalCount)
@@ -298,12 +301,17 @@ func (m *Model) BuildRows() []table.Row {
 	m.syncSortArrow()
 	var rows []table.Row
 	currItem := m.Table.GetCurrItem()
+	conflicts := m.rowConflicts()
 	for i, currPr := range m.Prs {
+		var c prrow.Conflicts
+		if p := currPr.Primary; p != nil {
+			c = conflicts[prKey{p.Repository.NameWithOwner, p.Number}]
+		}
 		prModel := prrow.PullRequest{
 			Ctx:     m.Ctx,
 			Data:    &currPr,
 			Columns: m.Table.Columns, ShowAuthorIcon: m.ShowAuthorIcon,
-			Marked: m.marked[markKey(&currPr)],
+			Marked: m.marked[markKey(&currPr)], Conflicts: c,
 		}
 		rows = append(
 			rows,

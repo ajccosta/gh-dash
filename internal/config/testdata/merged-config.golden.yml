@@ -64,6 +64,8 @@ defaults:
         hidden: true
       lines:
         width: 15
+      conflicts:
+        width: 12
     issues:
       updatedAt:
         width: 5

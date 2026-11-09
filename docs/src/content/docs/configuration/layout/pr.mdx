@@ -31,6 +31,7 @@ By default, PR views display the following columns in the order they're listed:
 1. [`numComments`] with a width of 3 columns.
 1. [`reviewStatus`] with a width of 3 columns.
 1. [`ci`] with a width of 3 columns.
+1. [`conflicts`] with a width of 12 columns.
 1. [`lines`] with a width of 16 columns.
 
 <Aside type="caution" title="Watch out!">
@@ -51,6 +52,7 @@ By default, PR views display the following columns in the order they're listed:
 [`numComments`]: #pr-number-of-comments-column
 [`reviewStatus`]: #pr-review-status-column
 [`ci`]:           #pr-continuous-integration-column
+[`conflicts`]:    #pr-conflicts-column
 [`lines`]:        #pr-lines-column
 
 ```yaml
@@ -71,6 +73,8 @@ assignees:
 base:
   width: 15
   hidden: true
+conflicts:
+  width: 12
 lines:
   width: 16
 ```
@@ -242,6 +246,21 @@ This column displays the labels assigned to a PR as colored pills.
 Up to 6 labels per PR are fetched and displayed.
 
 The heading for this column is <NerdFontIcon icon="nf-md-label_multiple_outline"/>.
+
+# PR Conflicts Column
+
+| Property    | Type | Default                                             |
+| :---------- | :--- | :-------------------------------------------------- |
+| `conflicts` | yaml | <Code code={`width: 12`} lang="yaml" frame="none"/> |
+
+This column displays what a PR conflicts with: its base, in red, when GitHub
+reports it can't be merged, and, in yellow, the other open PRs of the section
+into the same base it conflicts with once they're merged, as `#123`. Git works
+those out in the repo's local checkout from [`repoPaths`], without asking
+GitHub, for sections with two or more open PRs of a repo into one base. The
+column shows `…` while git is checking and `?` if it couldn't.
+
+[`repoPaths`]: /configuration/repo-paths/
 
 # PR Lines Column
 

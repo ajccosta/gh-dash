@@ -28,6 +28,9 @@ export function GET() {
           width: 15,
           hidden: true,
         },
+        conflicts: {
+          width: 12,
+        },
         lines: {
           width: 16,
         },
@@ -182,6 +185,20 @@ export function GET() {
               $ref: "./options.json",
             },
           ],
+        },
+        conflicts: {
+          title: "PR Conflicts Column",
+          description:
+            "Defines options for the conflicts column in a PR section.",
+          type: "object",
+          oneOf: [
+            {
+              $ref: "./options.json",
+            },
+          ],
+          default: {
+            width: 12,
+          },
         },
         lines: {
           title: "PR Lines Column",

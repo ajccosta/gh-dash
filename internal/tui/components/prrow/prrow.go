@@ -24,6 +24,15 @@ type PullRequest struct {
 	Columns        []table.Column
 	ShowAuthorIcon bool
 	Marked         bool // selected for a batch action: its number is shown in reverse video
+	Conflicts      Conflicts
+}
+
+// Conflicts is what git found about the PR and the other open PRs of its list
+// into the same base; the section fills it in.
+type Conflicts struct {
+	Checking bool
+	Peers    []int // the PRs it conflicts with once they are merged
+	Err      error
 }
 
 func (pr *PullRequest) getTextStyle() lipgloss.Style {
@@ -424,4 +433,29 @@ func (pr *PullRequest) RenderMergeStateStatus() string {
 	default:
 		return ""
 	}
+}
+
+// renderConflicts is what the PR conflicts with: its base, as GitHub says,
+// and the open PRs, as git does.
+func (pr *PullRequest) renderConflicts() string {
+	p := pr.Data.Primary
+	if p == nil || p.State != "OPEN" {
+		return ""
+	}
+	theme := pr.Ctx.Theme
+	var parts []string
+	if p.Mergeable == "CONFLICTING" {
+		parts = append(parts, lipgloss.NewStyle().Foreground(theme.ErrorText).Render(p.BaseRefName))
+	}
+	c := pr.Conflicts
+	switch {
+	case c.Checking:
+		parts = append(parts, lipgloss.NewStyle().Foreground(theme.FaintText).Render("…"))
+	case c.Err != nil:
+		parts = append(parts, lipgloss.NewStyle().Foreground(theme.FaintText).Render("?"))
+	}
+	for _, n := range c.Peers {
+		parts = append(parts, lipgloss.NewStyle().Foreground(theme.WarningText).Render(fmt.Sprintf("#%d", n)))
+	}
+	return strings.Join(parts, " ")
 }
