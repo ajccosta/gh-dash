@@ -1262,7 +1262,7 @@ func (m *Model) updateSection(id int, sType string, msg tea.Msg) (cmd tea.Cmd) {
 	currSection := m.getCurrSection()
 	if currSection != nil && id == currSection.GetId() {
 		if _, ok := msg.(prssection.SectionPullRequestsFetchedMsg); ok {
-			cmd = m.onViewedRowChanged()
+			cmd = tea.Batch(cmd, m.onViewedRowChanged()) // keep the section's own follow-ups
 		}
 	}
 
