@@ -96,6 +96,4 @@ const (
 	CommentPrompt  = "Leave a comment" + Ellipsis
 	ApprovalPrompt = "Approve with comment" + Ellipsis
 	LabelPrompt    = "Add/remove labels (comma-separated)" + Ellipsis
-
-	Logo = `DASH`
 )

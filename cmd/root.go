@@ -26,8 +26,6 @@ import (
 	"github.com/dlvhdr/gh-dash/v4/internal/config"
 	"github.com/dlvhdr/gh-dash/v4/internal/git"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/constants"
-	dctx "github.com/dlvhdr/gh-dash/v4/internal/tui/context"
 )
 
 var (
@@ -40,19 +38,16 @@ var (
 var (
 	cfgFlag string
 
-	logo = lipgloss.NewStyle().Foreground(dctx.LogoColor).MarginBottom(1).SetString(constants.Logo)
-
 	rootCmd = &cobra.Command{
 		Use: "gh dash",
 		Long: lipgloss.JoinVertical(
 			lipgloss.Left,
-			logo.Render(),
 			"A rich terminal UI for GitHub that doesn't break your flow.",
 			"",
 			lipgloss.NewStyle().
 				Faint(true).
 				Italic(true).
-				Render("Visit https://gh-dash.dev for the docs."),
+				Render("See https://github.com/ajccosta/gh-dash for what it does."),
 		),
 		Short:   "A rich terminal UI for GitHub that doesn't break your flow.",
 		Version: "",
@@ -157,14 +152,7 @@ func init() {
 	}
 
 	rootCmd.Version = buildVersion(Version, Commit, Date, BuiltBy)
-	rootCmd.SetVersionTemplate(
-		lipgloss.JoinVertical(
-			lipgloss.Left,
-			"",
-			logo.Render(),
-			`gh-dash {{printf "version %s\n" .Version}}`,
-		),
-	)
+	rootCmd.SetVersionTemplate(`gh-dash {{printf "version %s\n" .Version}}`)
 
 	rootCmd.Flags().Bool(
 		"debug",

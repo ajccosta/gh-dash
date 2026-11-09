@@ -135,8 +135,6 @@ var DefaultStyles = Styles{
 	},
 }
 
-var LogoColor = lipgloss.Color("#00F9FB")
-
 func InitStyles(theme theme.Theme) Styles {
 	var s Styles
 

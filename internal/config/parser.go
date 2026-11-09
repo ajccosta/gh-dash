@@ -566,7 +566,7 @@ Create one under: %s
 Example of a config.yml file:
 %s
 
-For more info, go to https://github.com/dlvhdr/gh-dash
+For more info, go to https://github.com/ajccosta/gh-dash
 press q to exit.
 
 Original error: %v`,

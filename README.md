@@ -107,7 +107,9 @@ following.
 - A section's follow-up fetches are no longer dropped when it finishes
   loading. Before, the stack fetch spun forever and kept the CPU busy.
 - The content fills the screen, with no empty row under the footer.
-- The donate link was removed from the footer.
+- Upstream's branding is gone: the donate link in the footer, the DASH badge
+  in the top bar, its check for new upstream releases, the `sponsors`
+  command, and the logo and gh-dash.dev link in `--help`.
 
 
 ## ❤️ Sponsoring
