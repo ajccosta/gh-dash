@@ -276,117 +276,22 @@ func GetSectionColumns(
 	cfg config.PrsSectionConfig,
 	ctx *context.ProgramContext,
 ) []table.Column {
-	dLayout := ctx.Config.Defaults.Layout.Prs
-	sLayout := cfg.Layout
-
-	updatedAtLayout := config.MergeColumnConfigs(
-		dLayout.UpdatedAt,
-		sLayout.UpdatedAt,
-	)
-	createdAtLayout := config.MergeColumnConfigs(
-		dLayout.CreatedAt,
-		sLayout.CreatedAt,
-	)
-	repoLayout := config.MergeColumnConfigs(dLayout.Repo, sLayout.Repo)
-	titleLayout := config.MergeColumnConfigs(dLayout.Title, sLayout.Title)
-	authorLayout := config.MergeColumnConfigs(dLayout.Author, sLayout.Author)
-	assigneesLayout := config.MergeColumnConfigs(
-		dLayout.Assignees,
-		sLayout.Assignees,
-	)
-	baseLayout := config.MergeColumnConfigs(dLayout.Base, sLayout.Base)
-	numCommentsLayout := config.MergeColumnConfigs(
-		dLayout.NumComments,
-		sLayout.NumComments,
-	)
-	reviewStatusLayout := config.MergeColumnConfigs(
-		dLayout.ReviewStatus,
-		sLayout.ReviewStatus,
-	)
-	stateLayout := config.MergeColumnConfigs(dLayout.State, sLayout.State)
-	ciLayout := config.MergeColumnConfigs(dLayout.Ci, sLayout.Ci)
-	labelsLayout := config.MergeColumnConfigs(dLayout.Labels, sLayout.Labels)
-	linesLayout := config.MergeColumnConfigs(dLayout.Lines, sLayout.Lines)
-
-	cols := []table.Column{
-		stackColumn(),
-		{
-			Title:  "",
-			Width:  utils.IntPtr(6), // the PR number, "#1234"
-			Hidden: stateLayout.Hidden,
-		},
-		sortable(ctx, table.Column{
-			Title:  "Title",
-			Grow:   utils.BoolPtr(true),
-			Hidden: titleLayout.Hidden,
-		}, "title", "Title"),
-		{
-			Title:  constants.LabelsIcon,
-			Width:  labelsLayout.Width,
-			Hidden: labelsLayout.Hidden,
-		},
-		{
-			Title:  "Assignees",
-			Width:  assigneesLayout.Width,
-			Hidden: assigneesLayout.Hidden,
-		},
-		sortable(ctx, table.Column{
-			Title:  "Base",
-			Width:  baseLayout.Width,
-			Hidden: baseLayout.Hidden,
-		}, "base", "Base"),
-		sortable(ctx, table.Column{
-			Title:  constants.CommentsIcon,
-			Width:  utils.IntPtr(4),
-			Hidden: numCommentsLayout.Hidden,
-		}, "comments", "Comments"),
-		sortable(ctx, table.Column{
-			Title:  "Rv",
-			Width:  utils.IntPtr(4),
-			Hidden: reviewStatusLayout.Hidden,
-		}, "review", "Review"),
-		sortable(ctx, table.Column{
-			Title:  "CI",
-			Width:  &ctx.Styles.PrSection.CiCellWidth,
-			Grow:   new(bool),
-			Hidden: ciLayout.Hidden,
-		}, "checks", "Checks"),
-		sortable(ctx, table.Column{
-			Title:  "±",
-			Width:  linesLayout.Width,
-			Hidden: linesLayout.Hidden,
-		}, "lines", "±"),
-		sortable(ctx, table.Column{
-			Title:  "Upd",
-			Width:  updatedAtLayout.Width,
-			Hidden: updatedAtLayout.Hidden,
-		}, "updated", "Updated"),
-		sortable(ctx, table.Column{
-			Title:  "Age",
-			Width:  createdAtLayout.Width,
-			Hidden: createdAtLayout.Hidden,
-		}, "created", "Age"),
+	var cols []table.Column
+	for _, c := range prrow.Columns {
+		if !c.Shown(ctx.Config.Theme.Ui.Table.Compact) {
+			continue
+		}
+		var l config.ColumnConfig
+		if c.Layout != nil {
+			l = config.MergeColumnConfigs(c.Layout(ctx.Config.Defaults.Layout.Prs), c.Layout(cfg.Layout))
+		}
+		col := c.Header(ctx, l)
+		if c.Sort != "" {
+			col = sortable(ctx, col, c.Sort, c.SortTitle)
+		}
+		cols = append(cols, col)
 	}
-	if !ctx.Config.Theme.Ui.Table.Compact {
-		return cols
-	}
-
-	// compact adds the repo and the author, around the title
-	return append([]table.Column{
-		cols[0],
-		cols[1],
-		sortable(ctx, table.Column{
-			Title:  "Repo",
-			Width:  repoLayout.Width,
-			Hidden: repoLayout.Hidden,
-		}, "repo", "Repo"),
-		cols[2],
-		sortable(ctx, table.Column{
-			Title:  "Author",
-			Width:  authorLayout.Width,
-			Hidden: authorLayout.Hidden,
-		}, "author", "Author"),
-	}, cols[3:]...)
+	return cols
 }
 
 func (m *Model) BuildRows() []table.Row {

@@ -425,39 +425,3 @@ func (pr *PullRequest) RenderMergeStateStatus() string {
 		return ""
 	}
 }
-
-func (pr *PullRequest) ToTableRow(isSelected bool) table.Row {
-	if !pr.Ctx.Config.Theme.Ui.Table.Compact {
-		return table.Row{
-			pr.renderGraph(isSelected),
-			pr.renderState(),
-			pr.renderExtendedTitle(isSelected),
-			pr.renderLabels(isSelected),
-			pr.renderAssignees(),
-			pr.renderBaseName(),
-			pr.renderNumComments(),
-			pr.renderReviewStatus(),
-			pr.renderCiStatus(),
-			pr.RenderLines(isSelected),
-			pr.renderUpdateAt(),
-			pr.renderCreatedAt(),
-		}
-	}
-
-	return table.Row{
-		pr.renderGraph(isSelected),
-		pr.renderState(),
-		pr.renderRepoName(),
-		pr.renderTitle(),
-		pr.renderAuthor(),
-		pr.renderLabels(isSelected),
-		pr.renderAssignees(),
-		pr.renderBaseName(),
-		pr.renderNumComments(),
-		pr.renderReviewStatus(),
-		pr.renderCiStatus(),
-		pr.RenderLines(isSelected),
-		pr.renderUpdateAt(),
-		pr.renderCreatedAt(),
-	}
-}

@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/dlvhdr/gh-dash/v4/internal/config"
 	"github.com/dlvhdr/gh-dash/v4/internal/data"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/prrow"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/table"
@@ -30,20 +31,18 @@ import (
 // it: the open PRs of its repo are fetched, and those it needs are added,
 // greyed out.
 
-const stackTitle = "Stack"
-
 // stackColumn holds the graph; shown only in stack order.
 func stackColumn() table.Column {
-	return table.Column{Title: stackTitle, Width: utils.IntPtr(len(stackTitle) + 2), Hidden: utils.BoolPtr(true)}
+	return prrow.Columns[0].Header(nil, config.ColumnConfig{})
 }
 
 // syncStackColumn shows the graph column, as wide as the graph, in stack order.
 func (m *Model) syncStackColumn() {
 	for i, c := range m.Table.Columns {
-		if c.Title != stackTitle {
+		if c.Title != prrow.StackTitle {
 			continue
 		}
-		w := len(stackTitle)
+		w := len(prrow.StackTitle)
 		for _, pr := range m.Prs {
 			w = max(w, len([]rune(pr.StackLanes[0]))+1)
 		}
