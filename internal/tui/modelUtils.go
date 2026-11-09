@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
+	"strconv"
+	"strings"
 	"text/template"
 	"time"
 
@@ -249,14 +251,28 @@ func (m *Model) runCustomCommand(commandTemplate string, contextData *map[string
 }
 
 func (m *Model) runCustomPRCommand(commandTemplate string, prData *prrow.Data) tea.Cmd {
-	return m.runCustomCommand(commandTemplate,
-		&map[string]any{
-			"RepoName":    prData.GetRepoNameWithOwner(),
-			"PrNumber":    prData.Primary.Number,
-			"HeadRefName": prData.Primary.HeadRefName,
-			"BaseRefName": prData.Primary.BaseRefName,
-			"Author":      prData.Primary.Author.Login,
-		})
+	fields := map[string]any{
+		"RepoName":    prData.GetRepoNameWithOwner(),
+		"PrNumber":    prData.Primary.Number,
+		"PrNumbers":   strconv.Itoa(prData.Primary.Number),
+		"HeadRefName": prData.Primary.HeadRefName,
+		"BaseRefName": prData.Primary.BaseRefName,
+		"Author":      prData.Primary.Author.Login,
+	}
+	// A command using PrNumbers runs on the selected PRs, when some are: their
+	// numbers, space separated, and their repo as RepoName.
+	if marked := m.markedPRs(); len(marked) > 0 && strings.Contains(commandTemplate, ".PrNumbers") {
+		repo := marked[0].GetRepoNameWithOwner()
+		var nums []string
+		for _, p := range marked {
+			if p.GetRepoNameWithOwner() != repo {
+				return m.notifyErr("The selected PRs are in several repos")
+			}
+			nums = append(nums, strconv.Itoa(p.Primary.Number))
+		}
+		fields["RepoName"], fields["PrNumbers"] = repo, strings.Join(nums, " ")
+	}
+	return m.runCustomCommand(commandTemplate, &fields)
 }
 
 func (m *Model) runCustomIssueCommand(commandTemplate string, issueData *data.IssueData) tea.Cmd {
