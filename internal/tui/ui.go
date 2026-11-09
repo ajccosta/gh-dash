@@ -933,7 +933,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, m.onViewedRowChanged())
 		}
 
-	case execProcessFinishedMsg, tea.FocusMsg:
+	case execProcessFinishedMsg:
 		if currSection != nil {
 			cmds = append(cmds, currSection.FetchNextPageSectionRows()...)
 		}
@@ -1062,7 +1062,6 @@ func (m *Model) View() tea.View {
 func (m *Model) view() tea.View {
 	var v tea.View
 	v.AltScreen = true
-	v.ReportFocus = true
 	v.MouseMode = tea.MouseModeCellMotion
 
 	if m.ctx.Config != nil && m.ctx.Config.Defaults.Mouse {
