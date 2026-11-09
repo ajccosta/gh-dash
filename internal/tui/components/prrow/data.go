@@ -16,6 +16,9 @@ type Data struct {
 	// Extra: no result of the section's search, only shown in stack order
 	// because PRs of the list are stacked on it.
 	Extra bool
+	// Order: where GitHub's search put it, for going back to that order
+	// without asking GitHub again.
+	Order int
 }
 
 func (data Data) GetTitle() string {

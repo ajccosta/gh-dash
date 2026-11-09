@@ -53,16 +53,16 @@ func (m *Model) syncStackColumn() {
 }
 
 // ToggleStacks puts the list in stack order (as a click on Base does), or
-// back in GitHub's order.
+// back in GitHub's order, as it was fetched.
 func (m *Model) ToggleStacks() tea.Cmd {
 	if m.sort != "base" {
 		return m.SortBy("base")
 	}
 	m.sort, m.sortDesc = "", false
 	data.SetSectionSort(m.sortId(), data.SectionSort{})
-	m.ResetRows()
-	m.syncStackColumn()
-	return tea.Batch(m.FetchNextPageSectionRows()...)
+	m.syncSortArrow()
+	m.sortPrs()
+	return nil
 }
 
 // stackOrder arranges prs into stacks and draws each one's piece of the graph.
@@ -151,6 +151,10 @@ func (m *Model) fetchStackParents() tea.Cmd {
 	if m.sort != "base" {
 		return nil
 	}
+	if m.stackParents != nil {
+		m.addStackParents(*m.stackParents)
+		return nil
+	}
 	var repos []string
 	for _, pr := range m.Prs {
 		if r := pr.Primary.Repository.NameWithOwner; !pr.Extra && !slices.Contains(repos, r) {
@@ -187,6 +191,7 @@ func (m *Model) addStackParents(msg stackParentsMsg) {
 	if m.sort != "base" {
 		return
 	}
+	m.stackParents = &msg
 	m.Prs = slices.DeleteFunc(m.Prs, func(pr prrow.Data) bool { return pr.Extra })
 	type ref struct {
 		repo string

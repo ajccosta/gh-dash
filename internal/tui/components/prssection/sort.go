@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -19,13 +20,13 @@ import (
 )
 
 // Clicking a column header sorts the PRs by it; clicking it again reverses.
-// GitHub sorts the columns its search can sort by, so the order holds across
-// pages; the others order the PRs loaded so far, and each page as it comes.
+// The PRs loaded so far are sorted here, and each page as it comes: sorting
+// never asks GitHub again, as every fetch counts against the API's hourly
+// limit.
 
 type prSort struct {
-	desc      bool   // the first click puts the most, newest or best first
-	qualifier string // GitHub's "sort:" for it, if GitHub can sort by it
-	cmp       func(a, b *data.PullRequestData) int
+	desc bool // the first click puts the most, newest or best first
+	cmp  func(a, b *data.PullRequestData) int
 	// arrange, instead of cmp, puts the PRs in an order of its own, which a
 	// second click does not reverse.
 	arrange func(prs []prrow.Data)
@@ -40,14 +41,18 @@ var prSorts = map[string]prSort{
 	"review":   {desc: true, cmp: byNum(reviewRank)},
 	"checks":   {desc: true, cmp: byNum(checksRank)},
 	"lines":    {desc: true, cmp: byNum(func(p *data.PullRequestData) int { return p.Additions + p.Deletions })},
-	"updated":  {desc: true, qualifier: "updated"},
-	"created":  {desc: true, qualifier: "created"},
+	"updated":  {desc: true, cmp: byTime(func(p *data.PullRequestData) time.Time { return p.UpdatedAt })},
+	"created":  {desc: true, cmp: byTime(func(p *data.PullRequestData) time.Time { return p.CreatedAt })},
 }
 
 func byText(f func(*data.PullRequestData) string) func(a, b *data.PullRequestData) int {
 	return func(a, b *data.PullRequestData) int {
 		return cmp.Compare(strings.ToLower(f(a)), strings.ToLower(f(b)))
 	}
+}
+
+func byTime(f func(*data.PullRequestData) time.Time) func(a, b *data.PullRequestData) int {
+	return func(a, b *data.PullRequestData) int { return f(a).Compare(f(b)) }
 }
 
 func byNum(f func(*data.PullRequestData) int) func(a, b *data.PullRequestData) int {
@@ -97,20 +102,6 @@ func sortable(ctx *context.ProgramContext, c table.Column, key, long string) tab
 // sortQualifiers are the "sort:" terms in a search.
 var sortQualifiers = regexp.MustCompile(`(^|\s)sort:\S+`)
 
-// GetFilters is the search, with GitHub's sort when it sorts the chosen column.
-func (m *Model) GetFilters() string {
-	f := m.BaseModel.GetFilters()
-	s := prSorts[m.sort]
-	if s.qualifier == "" {
-		return f
-	}
-	dir := "-asc"
-	if m.sortDesc {
-		dir = "-desc"
-	}
-	return strings.TrimSpace(sortQualifiers.ReplaceAllString(f, "")) + " sort:" + s.qualifier + dir
-}
-
 // syncSortArrow puts the arrow on the column the list is in order of: the
 // chosen one, else Updated while the search leaves GitHub's sort:updated.
 func (m *Model) syncSortArrow() {
@@ -121,7 +112,7 @@ func (m *Model) syncSortArrow() {
 }
 
 // SortBy sorts by the column key, or reverses it if the list is already in
-// its order. A change in what GitHub sorts by fetches the list again.
+// its order.
 func (m *Model) SortBy(key string) tea.Cmd {
 	s, ok := prSorts[key]
 	if !ok {
@@ -132,14 +123,9 @@ func (m *Model) SortBy(key string) tea.Cmd {
 	if m.Table.SortKey == key && s.arrange == nil {
 		desc = !m.Table.SortDesc
 	}
-	before := m.GetFilters()
 	m.sort, m.sortDesc = key, desc
 	data.SetSectionSort(m.sortId(), data.SectionSort{Key: key, Desc: desc})
 	m.syncSortArrow()
-	if m.GetFilters() != before {
-		m.ResetRows()
-		return tea.Batch(m.FetchNextPageSectionRows()...)
-	}
 	m.sortPrs()
 	return m.fetchStackParents()
 }
@@ -163,18 +149,19 @@ func (m *Model) sortPrs() {
 	for i := range m.Prs {
 		m.Prs[i].StackLanes = [2]string{}
 	}
-	if s.cmp == nil && s.arrange == nil {
-		m.syncStackColumn()
-		m.Table.SetRows(m.BuildRows())
-		return
-	}
 	var sel *data.PullRequestData
 	if i := m.Table.GetCurrItem(); i >= 0 && i < len(m.Prs) {
 		sel = m.Prs[i].Primary
 	}
-	if s.arrange != nil {
+	if s.arrange == nil { // the PRs only stack order shows go
+		m.Prs = slices.DeleteFunc(m.Prs, func(pr prrow.Data) bool { return pr.Extra })
+	}
+	switch {
+	case s.arrange != nil:
 		s.arrange(m.Prs)
-	} else {
+	case s.cmp == nil: // GitHub's order
+		slices.SortStableFunc(m.Prs, func(a, b prrow.Data) int { return cmp.Compare(a.Order, b.Order) })
+	default:
 		slices.SortStableFunc(m.Prs, func(a, b prrow.Data) int {
 			if a.Primary == nil || b.Primary == nil {
 				return 0

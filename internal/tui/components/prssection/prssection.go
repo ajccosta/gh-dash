@@ -30,6 +30,9 @@ type Model struct {
 	sort     string // the column a header click sorted by, "" for the search's order
 	sortDesc bool
 	marked   map[string]bool // the PRs selected for a batch action, by markKey
+	// stackParents: the open PRs of the list's repos, kept from the last time
+	// stack order asked for them until the list is fetched again.
+	stackParents *stackParentsMsg
 }
 
 func NewModel(
@@ -223,13 +226,17 @@ func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
 	case SectionPullRequestsFetchedMsg:
 		if m.LastFetch.TaskId == msg.TaskId {
 			mergeableCmd := m.keepMergeable(msg.Prs)
+			m.stackParents = nil
 			if m.PageInfo != nil {
 				// The page may have PRs shown only as stacked on: fetched again after.
 				m.Prs = slices.DeleteFunc(m.Prs, func(pr prrow.Data) bool { return pr.Extra })
-				m.Prs = append(m.Prs, msg.Prs...)
 			} else {
-				m.Prs = msg.Prs
+				m.Prs = nil
 			}
+			for i := range msg.Prs {
+				msg.Prs[i].Order = len(m.Prs) + i
+			}
+			m.Prs = append(m.Prs, msg.Prs...)
 			m.TotalCount = msg.TotalCount
 			m.PageInfo = &msg.PageInfo
 			m.SetIsLoading(false)
