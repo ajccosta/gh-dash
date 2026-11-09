@@ -25,6 +25,91 @@
 
 <img src="./docs/src/assets/overview.gif" />
 
+## This fork
+
+This is [ajccosta/gh-dash](https://github.com/ajccosta/gh-dash) (branch
+`arrow-nav`), a fork of [dlvhdr/gh-dash](https://github.com/dlvhdr/gh-dash).
+Everything below this section is upstream's README. The fork adds the
+following.
+
+### Navigation and mouse
+
+- Arrow-key navigation (`defaults.preview.navigation: arrows`). The arrows move
+  focus between the view switcher, the sections bar, the PR list, the preview's
+  buttons and its tabs. Tab toggles between the list and the preview, and Esc
+  returns to the list.
+- A view switcher (Notifications │ PRs │ Issues) in the top bar.
+- Mouse support, on by default (`defaults.mouse: false` turns it off). You can
+  click views, sections, the `+` button, rows, preview tabs, commits, links and
+  the search box. The wheel scrolls, and clickable things light up under the
+  pointer.
+- Drag the line between the list and the preview to resize them. The size is
+  kept across restarts.
+- Click a column header to sort by it, and again to reverse. Each section's
+  sort is kept across restarts.
+- Plain characters instead of Nerd Font glyphs, so any monospace font works.
+
+### PR list and preview
+
+- The PR number, in its state's colour, replaces the state icon.
+- **PR stacks:** `S`, or a click on Base, shows each PR under the one it is
+  based on, as a graph read top-down in merge order. PRs outside the search
+  that the list is stacked on are shown greyed out, and conflicts are marked.
+- The preview has two tabs. **Overview** shows the summary, commits (each one
+  opens its diff), checks, files and activity in one scroll. **Commits** has
+  an "All commits" entry.
+- A **Conflicts** tab lists the files a conflicting PR conflicts in. Each file
+  opens side by side in [ghdiff](https://github.com/ajccosta/ghdiff), with
+  every conflict shown whole.
+- Markdown renders as on GitHub: tables are kept, bare URLs, `#123` and
+  `@user` become links, images become links, and GitHub's HTML is converted.
+  Links are clickable.
+- Review comments show the code they are on. Clicking `path#L…` opens the
+  diff at those lines.
+- Diffs are handed to the pager with the PR's repo, number, commit and local
+  clone (`GHDIFF_*` variables). The screen stays covered while the pager
+  starts and after it quits.
+- Outside a repo, sections meant for the current repo are hidden, instead of
+  searching all of GitHub.
+
+### Acting on PRs
+
+- **Approve**, **Merge** and **Close** buttons on the preview.
+- **Approve your own PRs locally:** GitHub doesn't allow it, so the approval
+  is kept on your machine for that head commit. The PR turns green until new
+  commits arrive.
+- Merging opens a dialog that asks for the method and remembers it. The merge
+  runs in the background, and the PR stays in the list, updated in place.
+- When GitHub can't merge a PR but git can, the PR is merged with its base
+  locally, pushed, then merged. A blocked Merge button is amber with ⚠.
+- PRs whose mergeability GitHub is still checking keep their last known state
+  until GitHub answers.
+- **Delete a merged PR's branch** (`B`, or "Delete branch" in the merge
+  dialog). PRs based on that branch are moved onto its base first. The default
+  branch is never deleted.
+- **Remove a commit from a PR** (`U`): revert it, or drop it and force-push
+  when that is safe.
+
+### Custom keybindings
+
+- `form:` asks for choices in a dialog first; the command reads them as
+  `{{.Form.<name>}}`. The dialog starts from the last choices made.
+  `optionsCommand` fills a field's options from a command, and `input: true`
+  lets you type a value. In a typed field, ←→ picks a shown option, typing
+  filters the options, and tab completes.
+- `progress: true` runs the command in the background, and the dialog draws a
+  bar from the command's `progress PCT TEXT` lines. An `ask TEXT<tab>OPTIONS`
+  line shows a question, and the answer goes to the command's stdin.
+- `footer: true` shows the keybinding in the footer hint.
+
+### Fixes
+
+- A section's follow-up fetches are no longer dropped when it finishes
+  loading. Before, the stack fetch spun forever and kept the CPU busy.
+- The content fills the screen, with no empty row under the footer.
+- The donate link was removed from the footer.
+
+
 ## ❤️ Sponsoring
 
 If you enjoy `DASH` and want to help, consider supporting the project with a
