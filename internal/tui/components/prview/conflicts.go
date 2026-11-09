@@ -1,12 +1,8 @@
 package prview
 
 import (
-	"bytes"
-	"errors"
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -14,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	gitmerge "github.com/dlvhdr/gh-dash/v4/internal/conflicts"
 	"github.com/dlvhdr/gh-dash/v4/internal/data"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/common"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/constants"
@@ -34,23 +31,13 @@ type conflicts struct {
 	err error
 }
 
-// merge is the PR merged into its base by git, in the checkout at dir.
-type merge struct {
-	dir   string
-	base  string   // the base's commit
-	head  string   // the PR's
-	tree  string   // the merge, conflict markers in its files
-	files []string // the conflicting ones; none: git merges it cleanly
-}
+// merge is the PR merged into its base by git.
+type merge = gitmerge.Merge
 
 var (
 	conflictsMu    sync.Mutex
 	conflictsCache = map[string]conflicts{}
-	fetchMu        sync.Mutex // one fetch into a checkout at a time
 )
-
-// conflictsRemote is where the PR is fetched from.
-var conflictsRemote = func(repo string) string { return "https://github.com/" + repo + ".git" }
 
 // ConflictsMsg says git is done with a PR; the preview shows the result.
 type ConflictsMsg struct{}
@@ -103,90 +90,18 @@ func (m *Model) findBaseConflicts() tea.Cmd {
 // in memory. The conflict markers name the two sides as their refs:
 // gh-dash/<number>/<base> and gh-dash/<number>/pr-<number>.
 func conflictingFiles(dir, repo string, number int, base string) (merge, error) {
-	dir = expandHome(dir)
+	dir = gitmerge.ExpandHome(dir)
 	baseRef := fmt.Sprintf("refs/gh-dash/%d/%s", number, base)
 	headRef := fmt.Sprintf("refs/gh-dash/%d/pr-%d", number, number)
 	defer func() {
-		_, _, _ = gitCode(dir, "update-ref", "-d", headRef)
-		_, _, _ = gitCode(dir, "update-ref", "-d", baseRef)
+		_, _ = gitmerge.Git(dir, "update-ref", "-d", headRef)
+		_, _ = gitmerge.Git(dir, "update-ref", "-d", baseRef)
 	}()
-	if err := fetch(dir, repo, fmt.Sprintf("+refs/heads/%s:%s", base, baseRef),
+	if err := gitmerge.Fetch(dir, repo, fmt.Sprintf("+refs/heads/%s:%s", base, baseRef),
 		fmt.Sprintf("+refs/pull/%d/head:%s", number, headRef)); err != nil {
-		return merge{dir: dir}, err
+		return merge{Dir: dir}, err
 	}
-	return mergeRefs(dir, baseRef, headRef)
-}
-
-// mergeRefs merges ref head into ref base in memory. The conflict markers
-// name the sides as the refs, without refs/.
-func mergeRefs(dir, base, head string) (merge, error) {
-	res := merge{dir: dir}
-	out, _, err := gitCode(dir, "rev-parse", base, head)
-	if err != nil {
-		return res, err
-	}
-	if oids := strings.Fields(out); len(oids) == 2 {
-		res.base, res.head = oids[0], oids[1]
-	}
-	base, head = strings.TrimPrefix(base, "refs/"), strings.TrimPrefix(head, "refs/")
-	out, code, err := gitCode(dir, "merge-tree", "--write-tree", "--name-only", "--no-messages", base, head)
-	if err != nil {
-		return res, err
-	}
-	lines := strings.Split(strings.TrimSpace(out), "\n")
-	res.tree = lines[0]
-	if code == 1 {
-		res.files = lines[1:]
-	}
-	return res, nil
-}
-
-// fetch fetches refspecs from repo into the checkout at dir.
-func fetch(dir, repo string, refspecs ...string) error {
-	fetchMu.Lock()
-	defer fetchMu.Unlock()
-	_, _, err := gitCode(dir, append([]string{"fetch", "-q", "--no-tags", "--no-write-fetch-head",
-		conflictsRemote(repo)}, refspecs...)...)
-	return err
-}
-
-// gitCode runs git in dir; code is 1 when merge-tree found conflicts.
-func gitCode(dir string, args ...string) (out string, code int, err error) {
-	out, err = runGit(dir, args...)
-	var exit *exec.ExitError
-	if args[0] == "merge-tree" && errors.As(err, &exit) {
-		return out, 1, nil
-	}
-	return out, 0, err
-}
-
-// expandHome expands a leading ~/ of a repoPaths entry.
-func expandHome(dir string) string {
-	if rest, ok := strings.CutPrefix(dir, "~/"); ok {
-		if home, err := os.UserHomeDir(); err == nil {
-			return filepath.Join(home, rest)
-		}
-	}
-	return dir
-}
-
-// runGit runs git in dir; an error carries what git said.
-func runGit(dir string, args ...string) (string, error) {
-	var stdout, stderr bytes.Buffer
-	c := exec.Command("git", append([]string{"-C", dir}, args...)...)
-	c.Stdout, c.Stderr = &stdout, &stderr
-	err := c.Run()
-	var exit *exec.ExitError
-	if errors.As(err, &exit) && exit.ExitCode() == 1 && args[0] == "merge-tree" {
-		return stdout.String(), err // conflicts
-	}
-	if err != nil {
-		if msg := strings.TrimSpace(stderr.String()); msg != "" {
-			err = errors.New(msg)
-		}
-		return "", fmt.Errorf("git %s: %w", args[0], err)
-	}
-	return stdout.String(), nil
+	return gitmerge.MergeRefs(dir, baseRef, headRef)
 }
 
 // shownConflicts is what git found for the shown PR, while GitHub says it
@@ -224,16 +139,16 @@ func (m *Model) conflictEntries() []conflictEntry {
 	var es []conflictEntry
 	add := func(g merge, title string) {
 		title = fmt.Sprintf("GHDIFF_TITLE=%s#%d: %s", p.Repository.NameWithOwner, p.Number, title)
-		es = append(es, conflictEntry{g, g.files, title})
-		for _, f := range g.files {
+		es = append(es, conflictEntry{g, g.Files, title})
+		for _, f := range g.Files {
 			es = append(es, conflictEntry{g, []string{f}, title})
 		}
 	}
-	if c, ok := m.shownConflicts(); ok && !c.pending && c.err == nil && len(c.files) > 0 {
+	if c, ok := m.shownConflicts(); ok && !c.pending && c.err == nil && len(c.Files) > 0 {
 		add(c.merge, "conflicts with "+p.BaseRefName)
 	}
 	for _, q := range m.shownPeerConflicts().found {
-		add(q.merge, fmt.Sprintf("conflicts with %s once #%d is merged", p.BaseRefName, q.number))
+		add(q.Merge, fmt.Sprintf("conflicts with %s once #%d is merged", p.BaseRefName, q.Number))
 	}
 	return es
 }
@@ -256,10 +171,10 @@ func (m *Model) openConflict(e int) tea.Cmd {
 	return func() tea.Msg {
 		ctx := 3
 		for _, f := range c.diff {
-			ctx = max(ctx, longestConflict(c.dir, c.tree+":"+f))
+			ctx = max(ctx, longestConflict(c.Dir, c.Tree+":"+f))
 		}
-		out, err := runGit(c.dir, append([]string{"diff", "--no-color", fmt.Sprintf("-U%d", ctx),
-			c.base, c.tree, "--"}, c.diff...)...)
+		out, err := gitmerge.Git(c.Dir, append([]string{"diff", "--no-color", fmt.Sprintf("-U%d", ctx),
+			c.Base, c.Tree, "--"}, c.diff...)...)
 		if err != nil {
 			return constants.ErrMsg{Err: err}
 		}
@@ -272,7 +187,7 @@ func (m *Model) openConflict(e int) tea.Cmd {
 // The diff gets as many lines of context, so that each conflict is one hunk:
 // its current side is unchanged lines, which would split a hunk otherwise.
 func longestConflict(dir, blob string) int {
-	text, err := runGit(dir, "cat-file", "-p", blob)
+	text, err := gitmerge.Git(dir, "cat-file", "-p", blob)
 	if err != nil {
 		return 0
 	}
@@ -324,8 +239,8 @@ func (m *Model) renderConflictsTab() string {
 
 // numBaseConflictEntries is how many of the entries are the base's.
 func (m *Model) numBaseConflictEntries() int {
-	if c, ok := m.shownConflicts(); ok && !c.pending && c.err == nil && len(c.files) > 0 {
-		return len(c.files) + 1
+	if c, ok := m.shownConflicts(); ok && !c.pending && c.err == nil && len(c.Files) > 0 {
+		return len(c.Files) + 1
 	}
 	return 0
 }
@@ -342,13 +257,13 @@ func (m *Model) renderConflictList() string {
 		return head + "\n" + faint.Render("Finding the files…")
 	case c.err != nil:
 		return head + "\n" + faint.Render(c.err.Error())
-	case len(c.files) == 0:
+	case len(c.Files) == 0:
 		return head + "\n" + faint.Width(m.getIndentedContentWidth()).Render(fmt.Sprintf("GitHub can't merge it, but git can: it merges "+
 			"from one common ancestor, git from all of them. Merging (m) merges %s into %s with git first.",
 			m.pr.Data.Primary.BaseRefName, m.pr.Data.Primary.HeadRefName))
 	}
 	e := 0
-	return strings.Join(append([]string{head}, m.conflictGroup(&e, c.files)...), "\n")
+	return strings.Join(append([]string{head}, m.conflictGroup(&e, c.Files)...), "\n")
 }
 
 // conflictGroup is the entries of one merge's conflicting files, from *e on:
@@ -388,7 +303,7 @@ type BaseMerge struct {
 // cleanly.
 func (m *Model) BaseMerge() (BaseMerge, bool) {
 	c, ok := m.shownConflicts()
-	if !ok || c.pending || c.err != nil || len(c.files) > 0 || c.head == "" ||
+	if !ok || c.pending || c.err != nil || len(c.Files) > 0 || c.Head == "" ||
 		m.pr.Data.Primary.IsCrossRepository {
 		return BaseMerge{}, false
 	}
@@ -408,12 +323,12 @@ var (
 // never forced: if the branch moved since, the push fails. It returns once
 // GitHub says the PR can be merged.
 func (b BaseMerge) Push() error {
-	commit, err := runGit(b.dir, "commit-tree", b.tree, "-p", b.head, "-p", b.base,
+	commit, err := gitmerge.Git(b.Dir, "commit-tree", b.Tree, "-p", b.merge.Head, "-p", b.merge.Base,
 		"-m", fmt.Sprintf("Merge branch '%s' into %s", b.Base, b.Head))
 	if err != nil {
 		return err
 	}
-	if _, err := runGit(b.dir, "push", "-q", conflictsRemote(b.Repo),
+	if _, err := gitmerge.Git(b.Dir, "push", "-q", gitmerge.Remote(b.Repo),
 		strings.TrimSpace(commit)+":refs/heads/"+b.Head); err != nil {
 		return err
 	}
@@ -421,7 +336,7 @@ func (b BaseMerge) Push() error {
 	for range mergeablePolls {
 		time.Sleep(mergeableEvery)
 		out, err := exec.Command("gh", "api", fmt.Sprintf("repos/%s/pulls/%d", b.Repo, b.Number),
-			"--jq", `"\(.head.sha) \(.mergeable)"`).Output()
+			"--jq", `"\(.Head.sha) \(.mergeable)"`).Output()
 		if err != nil {
 			return fmt.Errorf("gh api: %w", err)
 		}

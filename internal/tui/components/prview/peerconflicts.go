@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	gitmerge "github.com/dlvhdr/gh-dash/v4/internal/conflicts"
 	"github.com/dlvhdr/gh-dash/v4/internal/data"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/common"
 )
@@ -20,10 +21,7 @@ import (
 // merged: each into the base, then this one into that.
 
 // peerConflict is an open PR the shown one conflicts with once it is merged.
-type peerConflict struct {
-	number int
-	merge  // the shown PR merged into the base with the other PR merged in
-}
+type peerConflict = gitmerge.Peer
 
 type peerConflicts struct {
 	pending bool
@@ -96,64 +94,8 @@ func (m *Model) findPeerConflicts(open []*data.PullRequestData) tea.Cmd {
 // with, once that PR is merged into base. The conflict markers name the two
 // sides gh-dash/peers/<number>/<base>+pr-<peer> and gh-dash/peers/<number>/pr-<number>.
 func peerConflictingFiles(dir, repo string, number int, base string, peers []int) ([]peerConflict, error) {
-	dir = expandHome(dir)
-	ref := func(name string) string { return fmt.Sprintf("refs/gh-dash/peers/%d/%s", number, name) }
-	pr := func(n int) string { return ref(fmt.Sprintf("pr-%d", n)) }
-	refs := []string{ref(base), pr(number)}
-	spec := []string{"+refs/heads/" + base + ":" + ref(base), fmt.Sprintf("+refs/pull/%d/head:%s", number, pr(number))}
-	for _, q := range peers {
-		refs = append(refs, pr(q))
-		spec = append(spec, fmt.Sprintf("+refs/pull/%d/head:%s", q, pr(q)))
-	}
-	defer func() {
-		for _, r := range refs {
-			_, _, _ = gitCode(dir, "update-ref", "-d", r)
-		}
-	}()
-	if err := fetch(dir, repo, spec...); err != nil {
-		return nil, err
-	}
-	changed := func(r string) ([]string, error) {
-		out, _, err := gitCode(dir, "diff", "--name-only", ref(base)+"..."+r)
-		return strings.Fields(out), err
-	}
-	mine, err := changed(pr(number))
-	if err != nil {
-		return nil, err
-	}
-	var found []peerConflict
-	for _, q := range peers {
-		theirs, err := changed(pr(q))
-		if err != nil {
-			return nil, err
-		}
-		if !slices.ContainsFunc(theirs, func(f string) bool { return slices.Contains(mine, f) }) {
-			continue
-		}
-		// q merged into the base; one that conflicts with it is not merged as is.
-		out, code, err := gitCode(dir, "merge-tree", "--write-tree", "--no-messages", ref(base), pr(q))
-		if err != nil || code == 1 {
-			continue
-		}
-		merged, _, err := gitCode(dir, "commit-tree", strings.TrimSpace(out), "-p", ref(base), "-p", pr(q),
-			"-m", fmt.Sprintf("Merge #%d", q))
-		if err != nil {
-			return nil, err
-		}
-		landed := ref(fmt.Sprintf("%s+pr-%d", base, q))
-		refs = append(refs, landed)
-		if _, _, err := gitCode(dir, "update-ref", landed, strings.TrimSpace(merged)); err != nil {
-			return nil, err
-		}
-		res, err := mergeRefs(dir, landed, pr(number))
-		if err != nil {
-			return nil, err
-		}
-		if len(res.files) > 0 {
-			found = append(found, peerConflict{q, res})
-		}
-	}
-	return found, nil
+	found, err := gitmerge.WithPeers(dir, repo, base, fmt.Sprintf("peers/%d", number), []int{number}, peers)
+	return found[number], err
 }
 
 // shownPeerConflicts is what git found for the shown PR and the open PRs;
@@ -196,8 +138,8 @@ func (m *Model) renderPeerConflicts(e int, brief bool) string {
 	lines := []string{lipgloss.JoinHorizontal(lipgloss.Top, m.ctx.Styles.Common.FailureGlyph, " ",
 		fmt.Sprintf("Conflicts with %d of the %d other open PRs into %s", len(c.found), c.checked, base))}
 	for _, q := range c.found {
-		lines = append(lines, faint.Render(fmt.Sprintf("once #%d %s is merged:", q.number, m.peerTitle(q.number))))
-		lines = append(lines, m.conflictGroup(&e, q.files)...)
+		lines = append(lines, faint.Render(fmt.Sprintf("once #%d %s is merged:", q.Number, m.peerTitle(q.Number))))
+		lines = append(lines, m.conflictGroup(&e, q.Files)...)
 	}
 	return strings.Join(lines, "\n")
 }

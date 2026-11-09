@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	gitmerge "github.com/dlvhdr/gh-dash/v4/internal/conflicts"
 )
 
 // gitRepo makes a repo whose main and PR #1 (refs/pull/1/head) both change
@@ -43,18 +45,18 @@ func gitRepo(t *testing.T) (remote, clone string) {
 
 func TestConflictingFiles(t *testing.T) {
 	remote, clone := gitRepo(t)
-	conflictsRemote = func(string) string { return remote }
-	t.Cleanup(func() { conflictsRemote = func(repo string) string { return "https://github.com/" + repo + ".git" } })
+	gitmerge.Remote = func(string) string { return remote }
+	t.Cleanup(func() { gitmerge.Remote = func(repo string) string { return "https://github.com/" + repo + ".git" } })
 
 	res, err := conflictingFiles(clone, "o/r", 1, "main")
 	require.NoError(t, err)
-	require.Equal(t, []string{"a.txt"}, res.files)
+	require.Equal(t, []string{"a.txt"}, res.Files)
 
-	diff, err := runGit(clone, "diff", "--no-color", res.base, res.tree, "--", "a.txt")
+	diff, err := gitmerge.Git(clone, "diff", "--no-color", res.Base, res.Tree, "--", "a.txt")
 	require.NoError(t, err)
 	require.Contains(t, diff, "+<<<<<<< gh-dash/1/main\n main\n+=======\n+pr\n+>>>>>>> gh-dash/1/pr-1",
 		"the base against the merge, its sides named")
-	require.Equal(t, 5, longestConflict(clone, res.tree+":a.txt"))
+	require.Equal(t, 5, longestConflict(clone, res.Tree+":a.txt"))
 
 	out, err := exec.Command("git", "-C", clone, "for-each-ref", "refs/gh-dash").Output()
 	require.NoError(t, err)
@@ -66,8 +68,8 @@ func TestConflictingFiles(t *testing.T) {
 
 func TestBaseMergePush(t *testing.T) {
 	remote, clone := gitRepo(t)
-	conflictsRemote = func(string) string { return remote }
-	t.Cleanup(func() { conflictsRemote = func(repo string) string { return "https://github.com/" + repo + ".git" } })
+	gitmerge.Remote = func(string) string { return remote }
+	t.Cleanup(func() { gitmerge.Remote = func(repo string) string { return "https://github.com/" + repo + ".git" } })
 	for _, k := range []string{"AUTHOR", "COMMITTER"} {
 		t.Setenv("GIT_"+k+"_NAME", "t")
 		t.Setenv("GIT_"+k+"_EMAIL", "t@t")
@@ -75,7 +77,7 @@ func TestBaseMergePush(t *testing.T) {
 	// The PR's branch changes a.txt as main does: undo main's change to it, so
 	// git merges cleanly.
 	git := func(args ...string) string {
-		out, err := runGit(remote, append([]string{"-c", "user.name=t", "-c", "user.email=t@t"}, args...)...)
+		out, err := gitmerge.Git(remote, append([]string{"-c", "user.name=t", "-c", "user.email=t@t"}, args...)...)
 		require.NoError(t, err)
 		return strings.TrimSpace(out)
 	}
@@ -84,7 +86,7 @@ func TestBaseMergePush(t *testing.T) {
 
 	res, err := conflictingFiles(clone, "o/r", 1, "main")
 	require.NoError(t, err)
-	require.Empty(t, res.files)
+	require.Empty(t, res.Files)
 
 	// gh says the PR can be merged once its head is what was pushed.
 	bin := t.TempDir()
@@ -96,11 +98,11 @@ func TestBaseMergePush(t *testing.T) {
 
 	b := BaseMerge{merge: res, Repo: "o/r", Base: "main", Head: "pr", Number: 1}
 	require.NoError(t, b.Push())
-	require.Equal(t, res.head+" "+res.base, git("log", "-1", "--format=%P", "pr"), "the PR, then main")
-	require.Equal(t, res.tree, git("rev-parse", "pr^{tree}"))
+	require.Equal(t, res.Head+" "+res.Base, git("log", "-1", "--format=%P", "pr"), "the PR, then main")
+	require.Equal(t, res.Tree, git("rev-parse", "pr^{tree}"))
 	require.Equal(t, "Merge branch 'main' into pr", git("log", "-1", "--format=%s", "pr"))
 
 	// The branch moved since: the push is refused, never forced.
-	b.head = res.base
+	b.merge.Head = res.Base
 	require.ErrorContains(t, b.Push(), "git push")
 }
