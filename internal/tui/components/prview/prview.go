@@ -35,10 +35,12 @@ type Model struct {
 	carousel        carousel.Model
 	editor          cmpcontroller.Controller
 	summaryViewMore bool
-	focused         bool   // preview has focus ("arrows" navigation)
-	cursor          int    // selected entry of cursorTab
-	cursorTab       string // the tab the cursor was last moved on
-	focusedButton   string // zone id of the button with focus ("arrows" navigation), or ""
+	focused         bool                    // preview has focus ("arrows" navigation)
+	cursor          int                     // selected entry of cursorTab
+	cursorTab       string                  // the tab the cursor was last moved on
+	focusedButton   string                  // zone id of the button with focus ("arrows" navigation), or ""
+	openPRs         []*data.PullRequestData // the dashboard's, as FindConflicts was last given them
+	peerKey         string                  // the shown PR's peerCache key, "" if it has none
 }
 
 // A preview tab is a list of sections, drawn one under the other and

@@ -14,6 +14,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/dlvhdr/gh-dash/v4/internal/data"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/common"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/constants"
 )
@@ -45,6 +46,7 @@ type merge struct {
 var (
 	conflictsMu    sync.Mutex
 	conflictsCache = map[string]conflicts{}
+	fetchMu        sync.Mutex // one fetch into a checkout at a time
 )
 
 // conflictsRemote is where the PR is fetched from.
@@ -59,10 +61,18 @@ func (m *Model) conflictKey() string {
 }
 
 // FindConflicts has git work out the files the shown PR conflicts in, if
-// GitHub says it conflicts and nobody has looked yet.
-func (m *Model) FindConflicts() tea.Cmd {
-	if m == nil || m.pr == nil || m.pr.Data.Primary == nil ||
-		m.pr.Data.Primary.Mergeable != "CONFLICTING" || m.ctx == nil || m.ctx.Config == nil {
+// GitHub says it conflicts and nobody has looked yet, and which of the open
+// PRs (the dashboard's) it conflicts with.
+func (m *Model) FindConflicts(open []*data.PullRequestData) tea.Cmd {
+	if m == nil || m.pr == nil || m.pr.Data.Primary == nil || m.ctx == nil || m.ctx.Config == nil {
+		return nil
+	}
+	m.openPRs = open
+	return tea.Batch(m.findBaseConflicts(), m.findPeerConflicts(open))
+}
+
+func (m *Model) findBaseConflicts() tea.Cmd {
+	if m.pr.Data.Primary.Mergeable != "CONFLICTING" {
 		return nil
 	}
 	p := m.pr.Data.Primary
@@ -93,42 +103,33 @@ func (m *Model) FindConflicts() tea.Cmd {
 // in memory. The conflict markers name the two sides as their refs:
 // gh-dash/<number>/<base> and gh-dash/<number>/pr-<number>.
 func conflictingFiles(dir, repo string, number int, base string) (merge, error) {
-	if rest, ok := strings.CutPrefix(dir, "~/"); ok {
-		if home, err := os.UserHomeDir(); err == nil {
-			dir = filepath.Join(home, rest)
-		}
-	}
-	res := merge{dir: dir}
-	baseRef := fmt.Sprintf("gh-dash/%d/%s", number, base)
-	headRef := fmt.Sprintf("gh-dash/%d/pr-%d", number, number)
-	git := func(args ...string) (string, int, error) {
-		out, err := runGit(dir, args...)
-		var exit *exec.ExitError
-		if errors.As(err, &exit) {
-			return out, 1, nil // merge-tree: conflicts
-		}
-		return out, 0, err
-	}
+	dir = expandHome(dir)
+	baseRef := fmt.Sprintf("refs/gh-dash/%d/%s", number, base)
+	headRef := fmt.Sprintf("refs/gh-dash/%d/pr-%d", number, number)
 	defer func() {
-		_, _, _ = git("update-ref", "-d", "refs/"+headRef)
-		_, _, _ = git("update-ref", "-d", "refs/"+baseRef)
+		_, _, _ = gitCode(dir, "update-ref", "-d", headRef)
+		_, _, _ = gitCode(dir, "update-ref", "-d", baseRef)
 	}()
-	if _, _, err := git("fetch", "-q", "--no-tags", "--no-write-fetch-head",
-		conflictsRemote(repo),
-		fmt.Sprintf("+refs/heads/%s:refs/%s", base, baseRef),
-		fmt.Sprintf("+refs/pull/%d/head:refs/%s", number, headRef)); err != nil {
-		return res, err
+	if err := fetch(dir, repo, fmt.Sprintf("+refs/heads/%s:%s", base, baseRef),
+		fmt.Sprintf("+refs/pull/%d/head:%s", number, headRef)); err != nil {
+		return merge{dir: dir}, err
 	}
-	out, _, err := git("rev-parse", "refs/"+baseRef)
+	return mergeRefs(dir, baseRef, headRef)
+}
+
+// mergeRefs merges ref head into ref base in memory. The conflict markers
+// name the sides as the refs, without refs/.
+func mergeRefs(dir, base, head string) (merge, error) {
+	res := merge{dir: dir}
+	out, _, err := gitCode(dir, "rev-parse", base, head)
 	if err != nil {
 		return res, err
 	}
-	res.base = strings.TrimSpace(out)
-	if out, _, err = git("rev-parse", "refs/"+headRef); err != nil {
-		return res, err
+	if oids := strings.Fields(out); len(oids) == 2 {
+		res.base, res.head = oids[0], oids[1]
 	}
-	res.head = strings.TrimSpace(out)
-	out, code, err := git("merge-tree", "--write-tree", "--name-only", "--no-messages", baseRef, headRef)
+	base, head = strings.TrimPrefix(base, "refs/"), strings.TrimPrefix(head, "refs/")
+	out, code, err := gitCode(dir, "merge-tree", "--write-tree", "--name-only", "--no-messages", base, head)
 	if err != nil {
 		return res, err
 	}
@@ -138,6 +139,35 @@ func conflictingFiles(dir, repo string, number int, base string) (merge, error) 
 		res.files = lines[1:]
 	}
 	return res, nil
+}
+
+// fetch fetches refspecs from repo into the checkout at dir.
+func fetch(dir, repo string, refspecs ...string) error {
+	fetchMu.Lock()
+	defer fetchMu.Unlock()
+	_, _, err := gitCode(dir, append([]string{"fetch", "-q", "--no-tags", "--no-write-fetch-head",
+		conflictsRemote(repo)}, refspecs...)...)
+	return err
+}
+
+// gitCode runs git in dir; code is 1 when merge-tree found conflicts.
+func gitCode(dir string, args ...string) (out string, code int, err error) {
+	out, err = runGit(dir, args...)
+	var exit *exec.ExitError
+	if args[0] == "merge-tree" && errors.As(err, &exit) {
+		return out, 1, nil
+	}
+	return out, 0, err
+}
+
+// expandHome expands a leading ~/ of a repoPaths entry.
+func expandHome(dir string) string {
+	if rest, ok := strings.CutPrefix(dir, "~/"); ok {
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, rest)
+		}
+	}
+	return dir
 }
 
 // runGit runs git in dir; an error carries what git said.
@@ -175,13 +205,41 @@ func (m *Model) shownConflicts() (c conflicts, ok bool) {
 	return c, true
 }
 
-// The Conflicts tab's entries: "All conflicting files" (entry 0), then each
-// file (entry i+1 is file i).
-func (m *Model) numConflictEntries() int {
-	if c, ok := m.shownConflicts(); ok && !c.pending && c.err == nil && len(c.files) > 0 {
-		return len(c.files) + 1
+// conflictEntry is one entry of the Conflicts tab: a merge's conflicting
+// files to diff, all of them or one.
+type conflictEntry struct {
+	merge
+	diff  []string
+	title string // the pager's
+}
+
+// conflictEntries are the Conflicts tab's entries: for the base, then each
+// open PR the shown one conflicts with, "All conflicting files" and then each
+// file.
+func (m *Model) conflictEntries() []conflictEntry {
+	if m.pr == nil || m.pr.Data.Primary == nil {
+		return nil
 	}
-	return 0
+	p := m.pr.Data.Primary
+	var es []conflictEntry
+	add := func(g merge, title string) {
+		title = fmt.Sprintf("GHDIFF_TITLE=%s#%d: %s", p.Repository.NameWithOwner, p.Number, title)
+		es = append(es, conflictEntry{g, g.files, title})
+		for _, f := range g.files {
+			es = append(es, conflictEntry{g, []string{f}, title})
+		}
+	}
+	if c, ok := m.shownConflicts(); ok && !c.pending && c.err == nil && len(c.files) > 0 {
+		add(c.merge, "conflicts with "+p.BaseRefName)
+	}
+	for _, q := range m.shownPeerConflicts().found {
+		add(q.merge, fmt.Sprintf("conflicts with %s once #%d is merged", p.BaseRefName, q.number))
+	}
+	return es
+}
+
+func (m *Model) numConflictEntries() int {
+	return len(m.conflictEntries())
 }
 
 // openConflict shows entry e in the diff pager: the base against the merge,
@@ -189,29 +247,24 @@ func (m *Model) numConflictEntries() int {
 // current version beside its incoming one; it is not told the PR, as the
 // lines of the merge are not the PR's to comment on.
 func (m *Model) openConflict(e int) tea.Cmd {
-	c, _ := m.shownConflicts()
-	if e > len(c.files) {
+	es := m.conflictEntries()
+	if e >= len(es) {
 		return nil
 	}
-	files := c.files
-	if e > 0 {
-		files = files[e-1 : e]
-	}
-	p, cfg := m.pr.Data.Primary, m.ctx.Config
-	repo := p.Repository.NameWithOwner
-	title := fmt.Sprintf("GHDIFF_TITLE=%s#%d: conflicts with %s", repo, p.Number, p.BaseRefName)
+	c, cfg := es[e], m.ctx.Config
+	repo := m.pr.Data.Primary.Repository.NameWithOwner
 	return func() tea.Msg {
 		ctx := 3
-		for _, f := range files {
+		for _, f := range c.diff {
 			ctx = max(ctx, longestConflict(c.dir, c.tree+":"+f))
 		}
 		out, err := runGit(c.dir, append([]string{"diff", "--no-color", fmt.Sprintf("-U%d", ctx),
-			c.base, c.tree, "--"}, files...)...)
+			c.base, c.tree, "--"}, c.diff...)...)
 		if err != nil {
 			return constants.ErrMsg{Err: err}
 		}
 		return common.PageDiff([]byte(out), cfg.Pager.Diff,
-			common.GhdiffEnv(cfg.GetFullScreenDiffPagerEnv(), repo, 0, cfg.RepoPaths), title, "GHDIFF_SPLIT=1")
+			common.GhdiffEnv(cfg.GetFullScreenDiffPagerEnv(), repo, 0, cfg.RepoPaths), c.title, "GHDIFF_SPLIT=1")
 	}
 }
 
@@ -235,28 +288,52 @@ func longestConflict(dir, blob string) int {
 	return longest
 }
 
-// renderConflicts is the Overview's Conflicts section, while GitHub says the
-// PR conflicts.
+// renderConflicts is the Overview's Conflicts section: the base's while
+// GitHub says the PR conflicts, the open PRs' when it conflicts with some.
 func (m *Model) renderConflicts() string {
-	if _, ok := m.shownConflicts(); !ok {
-		return ""
+	var parts []string
+	e := 0
+	if _, ok := m.shownConflicts(); ok {
+		parts = append(parts, m.renderConflictList())
+		e = m.numBaseConflictEntries()
 	}
-	return m.renderConflictList()
+	if s := m.renderPeerConflicts(e, true); s != "" {
+		parts = append(parts, s)
+	}
+	return strings.Join(parts, "\n\n")
 }
 
 // renderConflictsTab is the Conflicts tab.
 func (m *Model) renderConflictsTab() string {
-	if _, ok := m.shownConflicts(); !ok {
-		return lipgloss.JoinHorizontal(lipgloss.Top, m.ctx.Styles.Common.SuccessGlyph, " ",
-			m.ctx.Styles.Common.FaintTextStyle.Render("No conflicts with "+m.pr.Data.Primary.BaseRefName))
+	var parts []string
+	if m.focused && m.tabPicker() == conflictPicker && m.numConflictEntries() > 0 {
+		parts = append(parts, m.ctx.Styles.Common.FaintTextStyle.Render(
+			"↑/↓ select · enter/d diff · ← tabs, list · esc list"))
 	}
-	return m.renderConflictList()
+	if _, ok := m.shownConflicts(); ok {
+		parts = append(parts, m.renderConflictList())
+	} else {
+		parts = append(parts, lipgloss.JoinHorizontal(lipgloss.Top, m.ctx.Styles.Common.SuccessGlyph, " ",
+			m.ctx.Styles.Common.FaintTextStyle.Render("No conflicts with "+m.pr.Data.Primary.BaseRefName)))
+	}
+	if s := m.renderPeerConflicts(m.numBaseConflictEntries(), false); s != "" {
+		parts = append(parts, s)
+	}
+	return strings.Join(parts, "\n\n")
 }
 
-// renderConflictList says what the PR conflicts in, each file to open.
+// numBaseConflictEntries is how many of the entries are the base's.
+func (m *Model) numBaseConflictEntries() int {
+	if c, ok := m.shownConflicts(); ok && !c.pending && c.err == nil && len(c.files) > 0 {
+		return len(c.files) + 1
+	}
+	return 0
+}
+
+// renderConflictList says what the PR conflicts in with its base, each file
+// to open.
 func (m *Model) renderConflictList() string {
 	c, _ := m.shownConflicts()
-	main := m.ctx.Styles.Common.MainTextStyle
 	faint := lipgloss.NewStyle().Foreground(m.ctx.Theme.FaintText).PaddingLeft(2)
 	head := lipgloss.JoinHorizontal(lipgloss.Top, m.ctx.Styles.Common.FailureGlyph, " ",
 		fmt.Sprintf("Conflicts with %s", m.pr.Data.Primary.BaseRefName))
@@ -270,25 +347,30 @@ func (m *Model) renderConflictList() string {
 			"from one common ancestor, git from all of them. Merging (m) merges %s into %s with git first.",
 			m.pr.Data.Primary.BaseRefName, m.pr.Data.Primary.HeadRefName))
 	}
-	lines := []string{head}
-	if m.focused && m.tabPicker() == conflictPicker {
-		lines = append(lines, m.ctx.Styles.Common.FaintTextStyle.Render(
-			"↑/↓ select · enter/d diff · ← tabs, list · esc list"))
-	}
-	entry := func(e int, text string, style lipgloss.Style) string {
-		if m.selected(conflictPicker, e) {
+	e := 0
+	return strings.Join(append([]string{head}, m.conflictGroup(&e, c.files)...), "\n")
+}
+
+// conflictGroup is the entries of one merge's conflicting files, from *e on:
+// all of them, then each.
+func (m *Model) conflictGroup(e *int, files []string) []string {
+	main := m.ctx.Styles.Common.MainTextStyle
+	entry := func(text string, style lipgloss.Style) string {
+		if m.selected(conflictPicker, *e) {
 			text = main.Bold(true).Render(CursorMarker) + " " + main.Bold(true).Reverse(true).Render(text)
 		} else {
 			text = "  " + style.Render(text)
 		}
-		return mark(conflictPicker, e, text)
+		text = mark(conflictPicker, *e, text)
+		*e++
+		return text
 	}
-	lines = append(lines, entry(0, fmt.Sprintf("All conflicting files (%d), in the diff", len(c.files)),
-		lipgloss.NewStyle().Foreground(m.ctx.Theme.SecondaryText).Underline(true)))
-	for i, f := range c.files {
-		lines = append(lines, entry(i+1, f, main))
+	lines := []string{entry(fmt.Sprintf("All conflicting files (%d), in the diff", len(files)),
+		lipgloss.NewStyle().Foreground(m.ctx.Theme.SecondaryText).Underline(true))}
+	for _, f := range files {
+		lines = append(lines, entry(f, main))
 	}
-	return strings.Join(lines, "\n")
+	return lines
 }
 
 // BaseMerge is a PR GitHub can't merge but git can. GitHub merges from one

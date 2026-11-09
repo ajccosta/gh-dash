@@ -845,7 +845,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.prs[msg.Id].(*prssection.Model).EnrichPR(msg.Data)
 			syncCmd := m.syncSidebar()
 			cmds = append(cmds, syncCmd)
-			cmds = append(cmds, m.prView.FindConflicts()) // GitHub may know only now
+			cmds = append(cmds, m.prView.FindConflicts(m.openPRs())) // GitHub may know only now
 		} else {
 			log.Error("failed enriching pr", "err", msg.Err)
 		}
@@ -1213,6 +1213,21 @@ func (m *Model) markNotificationAsRead(notificationId string) {
 	m.updateNotificationSections(readStateMsg)
 }
 
+// openPRs are the PRs the dashboard's PR sections list.
+func (m *Model) openPRs() []*data.PullRequestData {
+	var prs []*data.PullRequestData
+	for _, s := range m.prs {
+		if s, ok := s.(*prssection.Model); ok {
+			for _, p := range s.Prs {
+				if p.Primary != nil && p.Primary.State == "OPEN" {
+					prs = append(prs, p.Primary)
+				}
+			}
+		}
+	}
+	return prs
+}
+
 func (m *Model) onViewedRowChanged() tea.Cmd {
 	m.prView.SetSummaryViewLess()
 	m.prView.GoToFirstTab()
@@ -1221,7 +1236,7 @@ func (m *Model) onViewedRowChanged() tea.Cmd {
 	m.sidebar.ScrollToTop()
 	m.notificationView.ResetSubject()
 	keys.SetNotificationSubject(keys.NotificationSubjectNone)
-	return tea.Batch(sidebarCmd, enrichCmd, m.prView.FindConflicts())
+	return tea.Batch(sidebarCmd, enrichCmd, m.prView.FindConflicts(m.openPRs()))
 }
 
 func (m *Model) onWindowSizeChanged(msg tea.WindowSizeMsg) {
