@@ -36,7 +36,11 @@ func TestKeepMergeable_UnknownKeepsLastAndAsksAgain(t *testing.T) {
 	require.Equal(t, "CONFLICTING", prs[0].Primary.Mergeable, "what GitHub said last")
 	require.Equal(t, "UNKNOWN", prs[1].Primary.Mergeable, "never known")
 	require.NotNil(t, cmd)
+	require.Nil(t, m.keepMergeable(prs), "already being asked about")
 
 	msg := askMergeable("o/mergeable", 19)().(mergeableMsg)
 	require.Equal(t, "CONFLICTING", msg.value, "asked until GitHub knew")
+	m.Prs = nil // no rows to draw here
+	m.setMergeable(msg)
+	require.NotNil(t, m.keepMergeable([]prrow.Data{mergeablePR(19, "UNKNOWN")}), "asked again once that poll ended")
 }
