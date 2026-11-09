@@ -248,6 +248,9 @@ func (d BranchDeletion) done(msg *UpdatePRMsg, repo string, deleted bool) {
 // MergePR runs `gh pr merge` in the background with the method ("merge",
 // "squash" or "rebase") chosen in the merge dialog, then the branch deletion
 // if one is given.
+// MergeTaskId is the id of the task MergePR starts for PR number n.
+func MergeTaskId(n int) string { return buildTaskId("merge", n) }
+
 func MergePR(
 	ctx *context.ProgramContext,
 	section SectionIdentifier,
@@ -259,7 +262,7 @@ func MergePR(
 	repo := pr.GetRepoNameWithOwner()
 	args := []string{"pr", "merge", fmt.Sprint(prNumber), "-R", repo, "--" + method}
 	task := GitHubTask{
-		Id:           buildTaskId("merge", prNumber),
+		Id:           MergeTaskId(prNumber),
 		Args:         args,
 		Section:      section,
 		StartText:    fmt.Sprintf("Merging #%d (%s)", prNumber, method),

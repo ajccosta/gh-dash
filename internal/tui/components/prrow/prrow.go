@@ -23,6 +23,7 @@ type PullRequest struct {
 	Branch         git.Branch
 	Columns        []table.Column
 	ShowAuthorIcon bool
+	Marked         bool // selected for a batch action: its number is shown in reverse video
 }
 
 func (pr *PullRequest) getTextStyle() lipgloss.Style {
@@ -75,7 +76,8 @@ func (pr *PullRequest) renderState() string {
 	if pr.Data.Primary == nil {
 		return style.Foreground(pr.Ctx.Theme.SuccessText).Render("•")
 	}
-	return style.Foreground(pr.stateColor()).Render(fmt.Sprintf("#%d", pr.Data.Primary.Number))
+	return style.Foreground(pr.stateColor()).Reverse(pr.Marked).
+		Render(fmt.Sprintf("#%d", pr.Data.Primary.Number))
 }
 
 func (pr *PullRequest) stateColor() compat.AdaptiveColor {

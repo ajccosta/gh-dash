@@ -29,6 +29,7 @@ type Model struct {
 	cfg      config.PrsSectionConfig
 	sort     string // the column a header click sorted by, "" for the search's order
 	sortDesc bool
+	marked   map[string]bool // the PRs selected for a batch action, by markKey
 }
 
 func NewModel(
@@ -390,6 +391,7 @@ func (m *Model) BuildRows() []table.Row {
 			Ctx:     m.Ctx,
 			Data:    &currPr,
 			Columns: m.Table.Columns, ShowAuthorIcon: m.ShowAuthorIcon,
+			Marked: m.marked[markKey(&currPr)],
 		}
 		rows = append(
 			rows,

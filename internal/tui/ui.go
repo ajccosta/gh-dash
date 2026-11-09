@@ -53,11 +53,12 @@ type Model struct {
 	keys              *keys.KeyMap
 	sidebar           sidebar.Model
 	prView            prview.Model
-	pane              pane     // focused pane, "arrows" preview navigation only
-	paneBelowSections pane     // where ↓ from the sections bar goes back to
-	mouse             mousePos // for hover feedback (hover.go)
-	layout            layout   // the preview's dragged size (resize.go)
-	dragging          bool     // the list/preview divider is being dragged
+	pane              pane        // focused pane, "arrows" preview navigation only
+	paneBelowSections pane        // where ↓ from the sections bar goes back to
+	batch             *batchMerge // the selected PRs being merged one by one (batchmerge.go)
+	mouse             mousePos    // for hover feedback (hover.go)
+	layout            layout      // the preview's dragged size (resize.go)
+	dragging          bool        // the list/preview divider is being dragged
 	wheel             wheelState
 	lastView          *tea.View // shown again while wheel steps are being counted
 	links             []string  // the URLs of the view's links, by zone (links.go)
@@ -220,6 +221,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.openDeleteBranchDialog(plan)
 	}
 	switch msg := msg.(type) {
+	case batchRetryMsg:
+		return m, m.batchMergeNext()
 	case removeCommitPlanMsg:
 		return m, m.openRemoveCommitDialog(msg)
 	case commitRemovedMsg:
@@ -523,6 +526,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, cmd
 
+			case key.Matches(msg, keys.PRKeys.ToggleSelect):
+				if s, ok := currSection.(*prssection.Model); ok {
+					s.ToggleMarked(s.CurrRow())
+				}
+				return m, nil
+
+			case msg.String() == "esc" && m.markedPRs() != nil:
+				m.markedSection().Unmark(nil)
+				return m, nil
+
 			case key.Matches(msg, keys.PRKeys.Stacks):
 				if s, ok := currSection.(*prssection.Model); ok {
 					cmd = tea.Batch(s.ToggleStacks(), m.onViewedRowChanged())
@@ -817,7 +830,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, clearTaskAfter(msg.TaskId, taskShownFor(task)))
 
 			scmd := m.updateSection(msg.SectionId, msg.SectionType, msg.Msg)
-			cmds = append(cmds, scmd)
+			cmds = append(cmds, scmd, m.batchMergeStep(msg))
 
 			syncCmd := m.syncSidebar()
 			cmds = append(cmds, syncCmd)
@@ -1399,6 +1412,9 @@ func (m *Model) backToNotification() tea.Cmd {
 func (m *Model) promptConfirmation(currSection section.Section, action string) tea.Cmd {
 	if currSection != nil && action == "merge" {
 		sid := tasks.SectionIdentifier{Id: currSection.GetId(), Type: currSection.GetType()}
+		if prs := m.markedPRs(); prs != nil {
+			return m.openBatchMergeDialog(sid, prs)
+		}
 		return m.openMergeDialog(sid, m.getCurrRowData())
 	}
 	if currSection != nil && action == "deleteBranch" {

@@ -26,6 +26,7 @@ type PRKeyMap struct {
 	Merge                key.Binding
 	DeleteBranch         key.Binding
 	Stacks               key.Binding
+	ToggleSelect         key.Binding
 	RemoveCommit         key.Binding
 	Update               key.Binding
 	WatchChecks          key.Binding
@@ -99,6 +100,10 @@ var PRKeys = PRKeyMap{
 		key.WithKeys("S"),
 		key.WithHelp("S", "stacks"),
 	),
+	ToggleSelect: key.NewBinding(
+		key.WithKeys("*"),
+		key.WithHelp("*/ctrl+click", "select for batch merge"),
+	),
 	RemoveCommit: key.NewBinding(
 		key.WithKeys("U"),
 		key.WithHelp("U", "remove commit"),
@@ -142,6 +147,7 @@ func PRFullHelp() []key.Binding {
 		PRKeys.Merge,
 		PRKeys.DeleteBranch,
 		PRKeys.Stacks,
+		PRKeys.ToggleSelect,
 		PRKeys.RemoveCommit,
 		PRKeys.Update,
 		PRKeys.WatchChecks,
@@ -208,6 +214,8 @@ func rebindPRKeys(keys []config.Keybinding) error {
 			key = &PRKeys.DeleteBranch
 		case "stacks":
 			key = &PRKeys.Stacks
+		case "toggleSelect":
+			key = &PRKeys.ToggleSelect
 		case "removeCommit":
 			key = &PRKeys.RemoveCommit
 		case "update":

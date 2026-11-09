@@ -9,12 +9,18 @@ import (
 	"github.com/dlvhdr/gh-dash/v4/internal/config"
 	"github.com/dlvhdr/gh-dash/v4/internal/data"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/common"
+	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/prssection"
 )
 
 // Mouse support (defaults.mouse): a left click on a view, a section tab, the
 // "+" button, a list row or a preview tab does what the keys for it do. Every
 // clickable thing is a bubblezone mark made where it is drawn; this maps the
 // click back to it. The preview buttons are handled in Update.
+
+// markMods are the modifiers that make a click on a PR row select it for a
+// batch action instead of moving to it. Terminals keep Cmd-clicks to
+// themselves (iTerm2 opens links with them), so Ctrl, Option and Shift do.
+const markMods = tea.ModCtrl | tea.ModAlt | tea.ModShift | tea.ModSuper | tea.ModMeta
 
 // handleMouseClick reports whether the click landed on something it handles.
 func (m *Model) handleMouseClick(msg tea.MouseClickMsg) (bool, tea.Cmd) {
@@ -69,6 +75,10 @@ func (m *Model) handleMouseClick(msg tea.MouseClickMsg) (bool, tea.Cmd) {
 			return true, tea.Batch(s.SortBy(k), m.onViewedRowChanged())
 		}
 		if i := s.RowAt(msg); i >= 0 {
+			if ps, ok := s.(*prssection.Model); ok && msg.Mod&markMods != 0 {
+				ps.ToggleMarked(i)
+				return true, nil
+			}
 			if i == s.CurrRow() {
 				return true, nil
 			}

@@ -84,6 +84,9 @@ following.
   locally, pushed, then merged. A blocked Merge button is amber with ⚠.
 - PRs whose mergeability GitHub is still checking keep their last known state
   until GitHub answers.
+- **Batch merge:** select PRs with `*` or Ctrl/Option/Shift-click (`Esc`
+  clears), then `m` asks once and merges them one at a time, a PR before
+  those stacked on it. It stops at the first that fails.
 - **Delete a merged PR's branch** (`B`, or "Delete branch" in the merge
   dialog). PRs based on that branch are moved onto its base first. The default
   branch is never deleted.
