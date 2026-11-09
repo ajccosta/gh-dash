@@ -1316,9 +1316,19 @@ func (m *Model) getBaseContentHeight() int {
 		// Measure actual footer height — the ExpandedHelpHeight constant
 		// doesn't account for custom keybindings or view-specific bindings.
 		footerHeight := lipgloss.Height(m.footer.View())
-		return m.ctx.ScreenHeight - common.TabsHeight - footerHeight
+		return m.ctx.ScreenHeight - m.headerHeight() - footerHeight
 	}
-	return m.ctx.ScreenHeight - common.TabsHeight - common.FooterHeight
+	return m.ctx.ScreenHeight - m.headerHeight() - common.FooterHeight
+}
+
+// headerHeight is how many rows view() puts above the content: the tabs bar
+// (rendered common.HeaderHeight high), or the empty line the repo view has
+// instead.
+func (m *Model) headerHeight() int {
+	if m.ctx.View == config.RepoView {
+		return 1
+	}
+	return common.HeaderHeight
 }
 
 func (m *Model) syncMainContentDimensions() {
