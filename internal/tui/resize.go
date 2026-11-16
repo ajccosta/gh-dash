@@ -3,7 +3,6 @@ package tui
 import (
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/data"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/common"
 )
 
@@ -18,6 +17,8 @@ const layoutFile = "layout.json"
 type layout struct {
 	PreviewWidth  float64 `json:"previewWidth,omitempty"`
 	PreviewHeight float64 `json:"previewHeight,omitempty"`
+	// Columns are table columns' dragged widths (columns.go).
+	Columns map[string]int `json:"columns,omitempty"`
 }
 
 const minPaneSize = 20 // cells either pane keeps while dragging
@@ -92,8 +93,7 @@ func (m *Model) handleDividerMouse(msg tea.Msg) (bool, tea.Cmd) {
 	case tea.MouseReleaseMsg:
 		if m.dragging {
 			m.dragging = false
-			l := m.layout
-			return true, func() tea.Msg { data.SaveState(layoutFile, l); return nil }
+			return true, m.saveLayout()
 		}
 	}
 	return false, nil

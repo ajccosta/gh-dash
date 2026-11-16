@@ -7,6 +7,8 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	zone "github.com/lrstanley/bubblezone/v2"
+
+	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/table"
 )
 
 // Hover feedback (defaults.mouse): the clickable thing under the mouse gets
@@ -21,7 +23,11 @@ func (m *Model) hoveredZone() *zone.ZoneInfo {
 	c := &zoneCollector{}
 	zone.AnyInBounds(c, tea.MouseMotionMsg{X: m.mouse.x, Y: m.mouse.y})
 	var best *zone.ZoneInfo
+	row := zone.Get(table.HeaderRowZone)
 	for _, z := range c.zones {
+		if row != nil && *z == *row {
+			continue // the edges in it are tinted instead (columnEdgeRect)
+		}
 		if best == nil || area(z) < area(best) {
 			best = z
 		}
@@ -37,6 +43,8 @@ func (m *Model) paintHover(view string) string {
 	var x0, y0, x1, y1 int
 	if m.mouse.on && (m.dragging || m.onDivider(m.mouse.x, m.mouse.y)) {
 		x0, y0, x1, y1 = m.dividerRect() // it can be dragged
+	} else if x, y, ok := m.columnEdgeRect(); ok {
+		x0, y0, x1, y1 = x-1, y, x, y
 	} else if z := m.hoveredZone(); z != nil {
 		x0, y0, x1, y1 = z.StartX, z.StartY, z.EndX, z.EndY
 	} else {

@@ -59,6 +59,7 @@ type Model struct {
 	mouse             mousePos    // for hover feedback (hover.go)
 	layout            layout      // the preview's dragged size (resize.go)
 	dragging          bool        // the list/preview divider is being dragged
+	colDrag           *colDrag    // a table column's edge is being dragged (columns.go)
 	wheel             wheelState
 	lastView          *tea.View // shown again while wheel steps are being counted
 	links             []string  // the URLs of the view's links, by zone (links.go)
@@ -127,6 +128,10 @@ func NewModel(location config.Location, repos Repositories) Model {
 		Theme:             *theme.DefaultTheme,
 		Styles:            context.DefaultStyles,
 	}
+	if m.layout.Columns == nil {
+		m.layout.Columns = map[string]int{}
+	}
+	m.ctx.ColumnWidths = m.layout.Columns
 
 	m.footer = footer.NewModel(m.ctx)
 	m.dialog = dialog.New(m.ctx)
@@ -939,6 +944,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.MouseClickMsg:
+		if handled, cmd := m.handleColumnMouse(msg); handled {
+			return m, cmd
+		}
 		if msg.Button != tea.MouseLeft {
 			return m, nil
 		}
@@ -959,11 +967,17 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.MouseReleaseMsg:
+		if _, cmd := m.handleColumnMouse(msg); cmd != nil {
+			return m, cmd
+		}
 		if _, cmd := m.handleDividerMouse(msg); cmd != nil {
 			return m, cmd
 		}
 
 	case tea.MouseMotionMsg:
+		if handled, cmd := m.handleColumnMouse(msg); handled {
+			return m, cmd
+		}
 		if handled, cmd := m.handleDividerMouse(msg); handled {
 			return m, cmd
 		}

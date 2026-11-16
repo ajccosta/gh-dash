@@ -136,6 +136,12 @@ other columns order the PRs loaded so far. Each section's sort is remembered acr
 (`$XDG_STATE_HOME/gh-dash/sorts.json`, by section title). Each sortable column is one entry in `prSorts` (`prssection/sort.go`).
 Dragging the line between the list and the preview resizes them (it highlights under the mouse); the size is kept in
 `$XDG_STATE_HOME/gh-dash/layout.json` and takes over from `defaults.preview.width`/`height` (`internal/tui/resize.go`).
+Dragging a `│` between two column headers of a list resizes a column (it highlights under the mouse); the header
+draws one on every line that can be dragged. The
+Title column takes up the difference, so a line left of it resizes the column on its left, and one right of it the
+column on its right. Narrowed cells are cut with `…`. A right click on the line gives the column its configured width
+back. Widths are kept in `layout.json` too (`columns`, by item type and header, e.g. `PR/Review`), so every section
+of the same kind gets them (`internal/tui/columns.go`, `table/resize.go`); every table has it, a new column included.
 Clicking a link in a PR or issue description or comment opens it in the browser (any terminal hyperlink in the
 view is a zone, `internal/tui/links.go`).
 The headers are spelled out (Comments, Review, Checks, Updated); `theme.ui.table.shortHeaders: true` brings back

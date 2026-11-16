@@ -345,6 +345,11 @@ func (m *BaseModel) HeaderAt(msg tea.MouseMsg) string {
 	return m.Table.HeaderAt(msg)
 }
 
+// EdgeAt returns the column edge under the mouse, to resize the column.
+func (m *BaseModel) EdgeAt(msg tea.MouseMsg) (table.Edge, bool) {
+	return m.Table.EdgeAt(msg)
+}
+
 // SortBy orders the rows by a column; sections that can sort override it.
 func (m *BaseModel) SortBy(key string) tea.Cmd { return nil }
 

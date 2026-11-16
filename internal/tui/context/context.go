@@ -54,6 +54,9 @@ type ProgramContext struct {
 	StartTask            func(task Task) tea.Cmd
 	Theme                theme.Theme
 	Styles               Styles
+	// ColumnWidths are table columns' dragged widths, by table.ColumnKey;
+	// the tui keeps them in layout.json.
+	ColumnWidths map[string]int
 }
 
 func (ctx *ProgramContext) HasGHRepo() bool {

@@ -30,7 +30,8 @@ type Model struct {
 	rowsViewport   listviewport.Model
 	SortKey        string // the column the rows are sorted by (its header gets an arrow)
 	SortDesc       bool
-	ContentHeight  int // Optional: override content height (0 = use default from config)
+	ContentHeight  int    // Optional: override content height (0 = use default from config)
+	name           string // the item type, which ColumnKey starts with
 }
 
 type Column struct {
@@ -71,6 +72,7 @@ func NewModel(
 
 	return Model{
 		ctx:            ctx,
+		name:           itemTypeLabel,
 		Columns:        columns,
 		Rows:           rows,
 		EmptyState:     emptyState,
@@ -207,13 +209,16 @@ func (m *Model) OnLineUp() {
 	m.rowsViewport.PrevItem()
 }
 
+// getShownColumns are the columns not hidden, with their dragged widths.
 func (m *Model) getShownColumns() []Column {
 	shownColumns := make([]Column, 0, len(m.Columns))
-	for _, col := range m.Columns {
+	for i, col := range m.Columns {
 		if col.Hidden != nil && *col.Hidden {
 			continue
 		}
-
+		if w, ok := m.ctx.ColumnWidths[m.ColumnKey(i)]; ok && !grows(col) {
+			col.Width = &w
+		}
 		shownColumns = append(shownColumns, col)
 	}
 	return shownColumns
@@ -319,6 +324,10 @@ func (m *Model) renderHeader() string {
 		m.dimensions.Width,
 		constants.Ellipsis,
 	)
+	header = m.drawEdges(header, headerColumns)
+	if zone.DefaultManager != nil {
+		header = zone.Mark(HeaderRowZone, header)
+	}
 	return m.ctx.Styles.Table.HeaderStyle.
 		Width(m.dimensions.Width).
 		Height(common.TableHeaderHeight).
@@ -408,6 +417,9 @@ func (m *Model) renderRow(rowId int, headerColumns []string) string {
 			}
 			renderedCol = strings.Join(renderedLines, "\n")
 		} else {
+			if lipgloss.Width(col) > contentWidth {
+				col = ansi.Truncate(col, contentWidth, constants.Ellipsis) // a narrowed column cuts, not wraps
+			}
 			cellStyle := style.
 				Width(colWidth).
 				MaxWidth(colWidth).
