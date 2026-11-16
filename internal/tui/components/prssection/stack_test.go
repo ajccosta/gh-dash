@@ -56,6 +56,32 @@ func TestStackOrder(t *testing.T) {
 	require.Equal(t, "│      ", prs[3].StackLanes[1], "#8 still to come")
 }
 
+// A long chain is drawn straight down: a PR's last stacked PR in its column.
+func TestStackOrderStraight(t *testing.T) {
+	const a = "cmuparlay/htap"
+	prs := []prrow.Data{
+		stackPR(a, 15, "plan", "main"),
+		stackPR(a, 16, "index", "plan"),
+		stackPR(a, 18, "run", "index"),
+		stackPR(a, 19, "run2", "run"),
+		stackPR(a, 17, "bench", "plan"),
+		stackPR(a, 9, "other", "main"),
+	}
+	drawStacks(prs, true)
+	var got []string
+	for _, pr := range prs {
+		got = append(got, fmt.Sprintf("%-4s●#%d|%s", pr.StackLanes[0], pr.Primary.Number, pr.StackLanes[1]))
+	}
+	require.Equal(t, []string{
+		"├─  ●#15|│ │",
+		"│ ├─●#16|│ │ │",
+		"│ │ ●#18|│ │ │",
+		"│ │ ●#19|│ │  ",
+		"│   ●#17|│  ",
+		"└─  ●#9|   ",
+	}, got)
+}
+
 func TestAddStackParents(t *testing.T) {
 	const a = "o/r"
 	m := newTestModel("")
@@ -67,6 +93,7 @@ func TestAddStackParents(t *testing.T) {
 	m.Ctx.Config = &cfg
 	m.Ctx.Theme = theme.ParseTheme(&cfg)
 	m.Ctx.Styles = context.InitStyles(m.Ctx.Theme)
+	m.Ctx.ScreenWidth = 200 // wide enough for the graph not to be drawn straight
 	m.Table = table.NewModel(*m.Ctx, constants.Dimensions{Width: 80, Height: 20}, time.Time{}, time.Time{},
 		[]table.Column{stackColumn()}, nil, "PR", nil, "", false)
 	m.sort = "base"

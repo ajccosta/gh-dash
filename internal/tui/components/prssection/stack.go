@@ -30,24 +30,60 @@ import (
 // A PR stacked on one the section's search does not return still shows on
 // it: the open PRs of its repo are fetched, and those it needs are added,
 // greyed out.
+//
+// When that graph would take more than maxStackShare of the screen's width (a
+// long chain of PRs each on the last), it is drawn straight instead: a PR's
+// last stacked PR goes right under it, in its column, as git log --graph
+// draws a branch, and only the others step right.
+//
+//	├─●  #15 Plan
+//	│ ├─●  #16 Index
+//	│ │ ●  #18 Run, on #16
+//	│ │ ●  #19 Run, on #18
+//	│ ●  #17 Bench, on #15
+//	└─●  #9
+
+// maxStackShare is the most of the screen's width, in percent, the graph
+// takes before it is drawn straight.
+const maxStackShare = 12
 
 // stackColumn holds the graph; shown only in stack order.
 func stackColumn() table.Column {
 	return prrow.Columns[0].Header(nil, config.ColumnConfig{})
 }
 
-// syncStackColumn shows the graph column, as wide as the graph, in stack order.
+// syncStackColumn shows the graph column, as wide as the graph, in stack
+// order, drawing the graph straight when it is too wide for the screen.
 func (m *Model) syncStackColumn() {
-	for i, c := range m.Table.Columns {
-		if c.Title != prrow.StackTitle {
-			continue
-		}
+	width := func() int {
 		w := len(prrow.StackTitle)
 		for _, pr := range m.Prs {
 			w = max(w, len([]rune(pr.StackLanes[0]))+1)
 		}
-		m.Table.Columns[i].Width = utils.IntPtr(w + 2) // the cell padding
-		m.Table.Columns[i].Hidden = utils.BoolPtr(m.sort != "base")
+		return w + 2 // the cell padding
+	}
+	w := width()
+	if m.sort == "base" && m.Ctx != nil {
+		m.stackScreen = m.Ctx.ScreenWidth
+		if w*100 > maxStackShare*m.Ctx.ScreenWidth {
+			drawStacks(m.Prs, true)
+			w = width()
+		}
+	}
+	for i, c := range m.Table.Columns {
+		if c.Title == prrow.StackTitle {
+			m.Table.Columns[i].Width = utils.IntPtr(w)
+			m.Table.Columns[i].Hidden = utils.BoolPtr(m.sort != "base")
+		}
+	}
+}
+
+// UpdateProgramContext draws the stack graph again when the screen's width
+// changes, since that decides whether it is drawn straight.
+func (m *Model) UpdateProgramContext(ctx *context.ProgramContext) {
+	m.BaseModel.UpdateProgramContext(ctx)
+	if m.sort == "base" && ctx.ScreenWidth != m.stackScreen {
+		m.sortPrs()
 	}
 }
 
@@ -65,7 +101,11 @@ func (m *Model) ToggleStacks() tea.Cmd {
 }
 
 // stackOrder arranges prs into stacks and draws each one's piece of the graph.
-func stackOrder(prs []prrow.Data) {
+func stackOrder(prs []prrow.Data) { drawStacks(prs, false) }
+
+// drawStacks is stackOrder, drawing the graph straight if asked. Prs already
+// in stack order stay in it.
+func drawStacks(prs []prrow.Data, straight bool) {
 	key := func(p *data.PullRequestData, branch string) [2]string {
 		return [2]string{p.Repository.NameWithOwner, branch}
 	}
@@ -114,11 +154,15 @@ func stackOrder(prs []prrow.Data) {
 	}
 
 	out := make([]prrow.Data, 0, len(prs))
-	var walk func(i int, lanes string, last bool)
-	walk = func(i int, lanes string, last bool) {
+	// down: i is its parent's last child, drawn straight under it.
+	var walk func(i int, lanes string, last, down bool)
+	walk = func(i int, lanes string, last, down bool) {
 		pr := prs[i]
 		branch, below := "├─", "│ "
-		if last {
+		switch {
+		case down:
+			branch, below = "", ""
+		case last:
 			branch, below = "└─", "  "
 		}
 		next := " "
@@ -128,12 +172,13 @@ func stackOrder(prs []prrow.Data) {
 		pr.StackLanes = [2]string{lanes + branch, lanes + below + next}
 		out = append(out, pr)
 		for k, c := range children[i] {
-			walk(c, lanes+below, k == len(children[i])-1)
+			last := k == len(children[i])-1
+			walk(c, lanes+below, last, straight && last)
 		}
 	}
 	for _, g := range groups {
 		for k, r := range roots[g] {
-			walk(r, "", k == len(roots[g])-1)
+			walk(r, "", k == len(roots[g])-1, false)
 		}
 	}
 	copy(prs, out)

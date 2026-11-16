@@ -33,6 +33,8 @@ type Model struct {
 	// stackParents: the open PRs of the list's repos, kept from the last time
 	// stack order asked for them until the list is fetched again.
 	stackParents *stackParentsMsg
+	// stackScreen: the screen width the stack graph was last drawn for.
+	stackScreen int
 }
 
 func NewModel(
